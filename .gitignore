@@ -1,0 +1,107 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+.env/
+venv.bak/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+media_root/
+staticfiles/
+staticfiles_build/
+# If you collectstatic into a folder inside the repo
+/static/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+youtube_token.json
+youtube_token_*.json
+client_secret.json
+client_secrets_*.json
+*.key
+*.pem
+
+# obs-websocket temporary or token files (if any)
+youtube_token.json
+obs_token.json
+
+# VS Code, PyCharm, IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Node / front-end
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+public/
+
+# Git files
+!.gitignore

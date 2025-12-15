@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}YT Comment Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css">
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --accent: #38bdf8;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+        }
+        header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        a {
+            color: var(--accent);
+        }
+        main {
+            padding: 2rem;
+        }
+        .panel {
+            background: var(--panel);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.5);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        th {
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.75rem;
+        }
+        tr:hover {
+            background: rgba(56, 189, 248, 0.08);
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .badge.new { background: rgba(59,130,246,0.2); color: #60a5fa; }
+        .badge.reviewed { background: rgba(246,211,59,0.2); color: #f6d33b; }
+        .badge.sent { background: rgba(34,197,94,0.2); color: #4ade80; }
+        .badge.ignored { background: rgba(248,113,113,0.2); color: #f87171; }
+        form.inline {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        input, select, textarea, button {
+            border-radius: 8px;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        input, select, textarea {
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text);
+        }
+        button {
+            cursor: pointer;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            color: #0f172a;
+            font-weight: 600;
+            border: none;
+        }
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<header>
+    <div>
+        <strong>YT Live Chat Dashboard</strong>
+        <p style="margin:0;font-size:0.9rem;color:var(--text-muted);">Kelola komentar live dan distribusikan ke sistem lain</p>
+    </div>
+    <nav>
+        <a href="{% url 'comments:message-list' %}">Live Chat</a>
+    </nav>
+</header>
+<main>
+    <div class="panel">
+        {% block content %}{% endblock %}
+    </div>
+</main>
+</body>
+</html>
