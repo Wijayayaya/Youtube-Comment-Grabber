@@ -32,7 +32,7 @@ class Command(BaseCommand):
 		parser.add_argument(
 			"--interval",
 			type=int,
-			default=180,
+			default=300,
 			help="Jeda antar siklus (detik) saat --loop aktif",
 		)
 		parser.add_argument(

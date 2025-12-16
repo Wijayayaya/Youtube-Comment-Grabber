@@ -14,6 +14,7 @@ def store_live_chat_items(live_stream: LiveStream, items) -> int:
 		published_at = parse_datetime(snippet.get("publishedAt")) or timezone.now()
 		defaults = {
 			"live_stream": live_stream,
+			"author_profile_image_url": author_details.get("profileImageUrl", ""),
 			"author_name": author_details.get("displayName", ""),
 			"author_channel_id": author_details.get("channelId", ""),
 			"message_text": snippet.get("displayMessage", ""),

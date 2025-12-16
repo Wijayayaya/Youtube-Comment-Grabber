@@ -10,12 +10,13 @@ Dashboard berbasis Django untuk mengambil komentar live YouTube via API dan meng
 ## Prasyarat
 
 - Python 3.10 atau lebih baru.
-- Akun Google Cloud dengan YouTube Data API v3 aktif dan kredensial OAuth tipe *Desktop App*.
+- Akun Google Cloud dengan YouTube Data API v3 aktif dan kredensial OAuth tipe _Desktop App_.
 - Windows PowerShell (atau shell lain yang kompatibel) untuk menjalankan perintah.
 
 ## Konfigurasi Awal
 
 1. **Siapkan variabel lingkungan**
+
    - Salin `.env.example` menjadi `.env` lalu isi nilai yang sesuai.
    - `DJANGO_SECRET_KEY` bisa berupa string acak untuk penggunaan lokal.
    - `YOUTUBE_CLIENT_SECRET` menunjuk pada file JSON OAuth yang diunduh dari Google Cloud Console.
@@ -75,15 +76,13 @@ python manage.py poll_live_streams --loop
    python manage.py runserver
    ```
 
-2. Buka `http://127.0.0.1:8000/` untuk melihat daftar pesan.
-   - Gunakan filter video/status/kata kunci.
-   - Update status dan catatan langsung dari tabel.
+2. Buka `http://127.0.0.1:8000/`; alamat ini sekarang mengarahkan langsung ke `/admin/` dan tidak menampilkan daftar komentar sendiri.
 
-3. (Opsional) Masuk ke `http://127.0.0.1:8000/admin/` untuk mengelola data melalui Django Admin.
+3. Kelola komentar lewat antarmuka Django Admin (`/admin/`).
 
 ## Integrasi ke Sistem Lain
 
-API sederhana tersedia tanpa autentikasi (tambah mekanisme keamanan sesuai kebutuhan produksi):
+API sederhana tersedia bagi pengguna yang sudah login ke Django (session/cookie auth). Pastikan masuk ke `/admin/` dengan akun valid lalu gunakan endpoint berikut jika perlu otomatisasi internal:
 
 - `GET /api/messages/?status=new&limit=50` — Ambil pesan terbaru sesuai filter (opsional `video_id`, `since` ISO datetime).
 - `POST /api/messages/<pk>/mark-sent/` — Tandai pesan telah dikirim. Kirim field `note` jika ingin menyimpan catatan.

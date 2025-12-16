@@ -75,7 +75,6 @@ class Command(BaseCommand):
                     break
                 if max_iterations and iterations >= max_iterations:
                     break
-                # Use a fixed 180 seconds sleep to reduce polling frequency
-                time.sleep(180)
+                time.sleep(300)
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("Polling dihentikan oleh pengguna"))

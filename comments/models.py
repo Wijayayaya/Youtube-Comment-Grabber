@@ -54,6 +54,9 @@ class LiveChatMessage(models.Model):
 	message_id = models.CharField(max_length=255, unique=True)
 	author_name = models.CharField(max_length=255)
 	author_channel_id = models.CharField(max_length=255, blank=True)
+	author_profile_image_url = models.URLField(max_length=500, blank=True)
+	# Mark message to be shown in OBS browser source
+	obs_selected = models.BooleanField(default=False)
 	message_text = models.TextField()
 	published_at = models.DateTimeField()
 	status = models.CharField(max_length=32, choices=Status.choices, default=Status.NEW)

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>OBS - Live Comment</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: white;
+        color: #111;
+        font-family: Arial, Helvetica, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: left;
+      }
+      .card {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+        border-radius: 6px;
+      }
+      .avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #eee;
+      }
+      .meta {
+        display: flex;
+        flex-direction: column;
+      }
+      .author {
+        font-weight: 700;
+        font-size: 1.4rem;
+      }
+      .message {
+        font-size: 1.2rem;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" class="card">
+      <img id="avatar" class="avatar" src="" alt="avatar" />
+      <div class="meta">
+        <div id="author" class="author"></div>
+        <div id="message" class="message"></div>
+      </div>
+    </div>
+
+    <script>
+      (async function () {
+        const fetchUrl = "/api/obs_messages/";
+        let messages = [];
+        let idx = 0;
+        const avatar = document.getElementById("avatar");
+        const author = document.getElementById("author");
+        const messageEl = document.getElementById("message");
+
+        async function load() {
+          try {
+            const res = await fetch(fetchUrl, { cache: "no-store" });
+            if (!res.ok) throw new Error("fetch failed");
+            const data = await res.json();
+            messages = data.messages || [];
+            if (messages.length === 0) {
+              author.textContent = "";
+              messageEl.textContent = "";
+              avatar.src = "";
+            }
+            idx = 0;
+            show();
+          } catch (err) {
+            console.error(err);
+            setTimeout(load, 5000);
+          }
+        }
+
+        function show() {
+          if (!messages.length) return;
+          const m = messages[idx % messages.length];
+          author.textContent = m.author_name || "";
+          messageEl.textContent = m.text || "";
+          avatar.src = m.author_profile_image_url || "";
+          // if more than one, loop every 6s; otherwise refresh list periodically
+          const delay = messages.length > 1 ? 6000 : 10000;
+          idx = (idx + 1) % messages.length;
+          setTimeout(() => {
+            // if only one message, refetch to see updates
+            if (messages.length <= 1) load();
+            else show();
+          }, delay);
+        }
+
+        await load();
+      })();
+    </script>
+  </body>
+</html>

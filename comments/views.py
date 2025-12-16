@@ -1,54 +1,45 @@
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
+from django.shortcuts import render
 from django.utils.dateparse import parse_datetime
 from django.utils.http import urlencode
 from django.views import View
 from django.views.decorators.http import require_POST
-from django.views.generic import ListView
 from django.utils.decorators import method_decorator
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 
 from .models import LiveChatMessage
 from .services.obs import send_text_to_obs
 
 
-@method_decorator(staff_member_required(login_url='/admin/login/'), name='dispatch')
-class LiveChatMessageListView(ListView):
-	model = LiveChatMessage
-	template_name = 'comments/message_list.html'
-	paginate_by = 50
-
-	def get_queryset(self):
-		queryset = super().get_queryset().select_related('live_stream')
-		video_id = self.request.GET.get('video_id', '').strip()
-		status = self.request.GET.get('status', '').strip()
-		search = self.request.GET.get('q', '').strip()
-
-		if video_id:
-			queryset = queryset.filter(live_stream__video_id__iexact=video_id)
-		if status:
-			queryset = queryset.filter(status=status)
-		if search:
-			queryset = queryset.filter(message_text__icontains=search)
-
-		return queryset
-
-	def get_context_data(self, **kwargs):
-		context = super().get_context_data(**kwargs)
-		context['status_choices'] = LiveChatMessage.Status.choices
-		context['active_filters'] = {
-			'video_id': self.request.GET.get('video_id', ''),
-			'status': self.request.GET.get('status', ''),
-			'q': self.request.GET.get('q', ''),
-		}
-		querydict = self.request.GET.copy()
-		querydict.pop('page', None)
-		context['query_without_page'] = urlencode(querydict)
-		return context
+def obs_display(request):
+	"""Public minimal page for OBS browser source. Shows selected messages in a loop."""
+	return render(request, 'comments/obs_display.html')
 
 
-@staff_member_required(login_url='/admin/login/')
+class ObsMessagesApiView(View):
+	"""Public API returning messages marked for OBS display."""
+	def get(self, request):
+		queryset = (
+			LiveChatMessage.objects.filter(obs_selected=True)
+			.select_related('live_stream')
+			.order_by('published_at')
+		)
+
+		data = [
+			{
+				'id': m.id,
+				'author_name': m.author_name,
+				'author_profile_image_url': m.author_profile_image_url or None,
+				'text': m.message_text,
+			}
+			for m in queryset
+		]
+
+		return JsonResponse({'messages': data})
+
+
+@login_required(login_url='/admin/login/')
 @require_POST
 def update_message_status(request, pk):
 	message = get_object_or_404(LiveChatMessage, pk=pk)
@@ -65,12 +56,10 @@ def update_message_status(request, pk):
 		message.note = note
 		message.save(update_fields=['status', 'note', 'updated_at'])
 
-	query_string = request.META.get('QUERY_STRING', '')
-	suffix = f"?{query_string}" if query_string else ''
-	return redirect(f"{reverse('comments:message-list')}{suffix}")
+	return redirect('admin:comments_livechatmessage_changelist')
 
 
-@method_decorator(staff_member_required(login_url='/admin/login/'), name='dispatch')
+@method_decorator(login_required(login_url='/admin/login/'), name='dispatch')
 class MessageListApiView(View):
 	def get(self, request):
 		queryset = LiveChatMessage.objects.select_related('live_stream')
@@ -97,6 +86,7 @@ class MessageListApiView(View):
 				'message_id': message.message_id,
 				'video_id': message.live_stream.video_id,
 				'author': message.author_name,
+				'author_profile_image_url': message.author_profile_image_url or None,
 				'text': message.message_text,
 				'status': message.status,
 				'note': message.note,
@@ -109,7 +99,7 @@ class MessageListApiView(View):
 		return JsonResponse({'messages': data})
 
 
-@staff_member_required(login_url='/admin/login/')
+@login_required(login_url='/admin/login/')
 @require_POST
 def mark_message_sent_api(request, pk):
 	message = get_object_or_404(LiveChatMessage, pk=pk)
@@ -127,7 +117,7 @@ def mark_message_sent_api(request, pk):
 	return JsonResponse({'status': 'ok', 'id': message.id, 'sent_to_obs': sent_to_obs})
 
 
-@staff_member_required(login_url='/admin/login/')
+@login_required(login_url='/admin/login/')
 @require_POST
 def send_message_to_obs(request, pk):
 	"""Send a single LiveChatMessage to OBS without changing its status.
