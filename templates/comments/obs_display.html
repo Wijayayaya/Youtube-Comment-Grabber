@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>OBS - Live Comment</title>
+    <title>Live Comment Display</title>
     <style>
       html,
       body {
@@ -57,7 +57,7 @@
 
     <script>
       (async function () {
-        const fetchUrl = "/api/obs_messages/";
+        const fetchUrl = "/api/display_messages/";
         let messages = [];
         let idx = 0;
         const avatar = document.getElementById("avatar");
@@ -89,11 +89,11 @@
           author.textContent = m.author_name || "";
           messageEl.textContent = m.text || "";
           avatar.src = m.author_profile_image_url || "";
-          // if more than one, loop every 6s; otherwise refresh list periodically
-          const delay = messages.length > 1 ? 6000 : 10000;
+          // use per-stream rotation_seconds if provided; fallback 6s
+          const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 6;
+          const delay = rotation * 1000;
           idx = (idx + 1) % messages.length;
           setTimeout(() => {
-            // if only one message, refetch to see updates
             if (messages.length <= 1) load();
             else show();
           }, delay);

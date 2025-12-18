@@ -1,20 +1,17 @@
 from django.contrib import admin
 
-from .models import LiveChatMessage, LiveStream, OBSConfig
+from .models import LiveChatMessage, LiveStream
 from django.utils.html import format_html
 
 
 @admin.register(LiveStream)
 class LiveStreamAdmin(admin.ModelAdmin):
-	list_display = ('video_id', 'title', 'is_active', 'obs_config', 'last_polled_at', 'created_at')
+	list_display = ('video_id', 'title', 'is_active', 'display_rotation_seconds', 'last_polled_at', 'created_at')
+	list_editable = ('display_rotation_seconds',)
+	list_display_links = ('video_id',)
 	list_filter = ('is_active',)
 	search_fields = ('video_id', 'title')
 
-
-@admin.register(OBSConfig)
-class OBSConfigAdmin(admin.ModelAdmin):
-	list_display = ('name', 'host', 'port', 'default_text_source')
-	search_fields = ('name', 'host')
 
 
 @admin.register(LiveChatMessage)
@@ -26,19 +23,21 @@ class LiveChatMessageAdmin(admin.ModelAdmin):
 
 	author_avatar.short_description = 'Avatar'
 
-	list_display = ('message_id', 'live_stream', 'author_avatar', 'author_name', 'obs_selected', 'status', 'published_at')
-	list_filter = ('status', 'live_stream__video_id', 'obs_selected')
+	list_display = ('message_id', 'live_stream', 'author_avatar', 'author_name', 'display_selected', 'status', 'published_at')
+	list_filter = ('status', 'live_stream__video_id', 'display_selected')
+	list_editable = ('display_selected',)
+	list_display_links = ('message_id',)
 	search_fields = ('message_id', 'author_name', 'message_text')
 	autocomplete_fields = ('live_stream',)
 
-	actions = ['mark_selected_for_obs', 'unmark_selected_for_obs']
+	actions = ['mark_selected_for_display', 'unmark_selected_for_display']
 
-	def mark_selected_for_obs(self, request, queryset):
-		updated = queryset.update(obs_selected=True)
-		self.message_user(request, f"Marked {updated} message(s) for OBS display.")
-	mark_selected_for_obs.short_description = 'Mark selected messages for OBS'
+	def mark_selected_for_display(self, request, queryset):
+		updated = queryset.update(display_selected=True)
+		self.message_user(request, f"Marked {updated} message(s) for display.")
+	mark_selected_for_display.short_description = 'Mark selected messages for display'
 
-	def unmark_selected_for_obs(self, request, queryset):
-		updated = queryset.update(obs_selected=False)
-		self.message_user(request, f"Unmarked {updated} message(s) for OBS display.")
-	unmark_selected_for_obs.short_description = 'Unmark selected messages for OBS'
+	def unmark_selected_for_display(self, request, queryset):
+		updated = queryset.update(display_selected=False)
+		self.message_user(request, f"Unmarked {updated} message(s) for display.")
+	unmark_selected_for_display.short_description = 'Unmark selected messages for display'

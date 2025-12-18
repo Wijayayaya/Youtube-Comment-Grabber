@@ -11,9 +11,8 @@ class LiveStream(models.Model):
 	next_page_token = models.CharField(max_length=255, blank=True)
 	last_polled_at = models.DateTimeField(null=True, blank=True)
 	# OBS integration: reference to shared OBS config
-	obs_config = models.ForeignKey(
-		'OBSConfig', null=True, blank=True, on_delete=models.SET_NULL, related_name='streams'
-	)
+	# Display rotation: seconds each selected comment is shown
+	display_rotation_seconds = models.PositiveIntegerField(default=6, help_text='Seconds each comment is shown in the display')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
@@ -24,23 +23,6 @@ class LiveStream(models.Model):
 		return f"{self.title or self.video_id}"
 
 
-
-class OBSConfig(models.Model):
-	"""Shared OBS websocket configuration used by one or more LiveStream entries."""
-
-	name = models.CharField(max_length=128, unique=True, help_text='Friendly name for this OBS connection')
-	host = models.CharField(max_length=255, help_text='OBS websocket host, e.g. 127.0.0.1')
-	port = models.PositiveIntegerField(default=4444, help_text='OBS websocket port')
-	password = models.CharField(max_length=255, blank=True, help_text='OBS websocket password (optional)')
-	default_text_source = models.CharField(max_length=255, blank=True, help_text='Default text source name in OBS')
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-
-	class Meta:
-		ordering = ['name']
-
-	def __str__(self) -> str:
-		return self.name
 
 
 class LiveChatMessage(models.Model):
@@ -55,8 +37,8 @@ class LiveChatMessage(models.Model):
 	author_name = models.CharField(max_length=255)
 	author_channel_id = models.CharField(max_length=255, blank=True)
 	author_profile_image_url = models.URLField(max_length=500, blank=True)
-	# Mark message to be shown in OBS browser source
-	obs_selected = models.BooleanField(default=False)
+	# Mark message to be shown on the public comment display
+	display_selected = models.BooleanField(default=False)
 	message_text = models.TextField()
 	published_at = models.DateTimeField()
 	status = models.CharField(max_length=32, choices=Status.choices, default=Status.NEW)
