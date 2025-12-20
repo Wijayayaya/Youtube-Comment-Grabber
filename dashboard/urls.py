@@ -16,8 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from comments import views as comments_views
 
 urlpatterns = [
+    path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
     path('admin/', admin.site.urls),
     path('', include('comments.urls')),
 ]

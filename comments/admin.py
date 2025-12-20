@@ -1,7 +1,8 @@
 from django.contrib import admin
-
-from .models import LiveChatMessage, LiveStream
+from django.shortcuts import redirect
 from django.utils.html import format_html
+
+from .models import LiveChatMessage, LiveStream, ManageableLiveChatMessage
 
 
 @admin.register(LiveStream)
@@ -47,3 +48,34 @@ class LiveChatMessageAdmin(admin.ModelAdmin):
 		updated = queryset.update(display_selected=False)
 		self.message_user(request, f"Unmarked {updated} message(s) for display.")
 	unmark_selected_for_display.short_description = 'Unmark selected messages for display'
+
+
+@admin.register(ManageableLiveChatMessage)
+class ManageableLiveChatMessageAdmin(admin.ModelAdmin):
+	"""Proxy entry that redirects to the custom manage-comment screen."""
+
+	change_list_template = 'comments/manage_display.html'
+
+	def has_add_permission(self, request):
+		return False
+
+	def has_change_permission(self, request, obj=None):
+		return request.user.has_perm('comments.change_livechatmessage')
+
+	def has_delete_permission(self, request, obj=None):
+		return False
+
+	def changelist_view(self, request, extra_context=None):
+		"""Provide a custom page title so the admin change-list shows the desired label."""
+		extra_context = extra_context or {}
+		extra_context.setdefault('title', 'Manage live chat')
+
+		# Provide current rotation seconds (take the first stream as representative)
+		from .models import LiveStream
+		first = LiveStream.objects.order_by('-created_at').first()
+		if first:
+			extra_context.setdefault('current_rotation_seconds', first.display_rotation_seconds)
+		else:
+			extra_context.setdefault('current_rotation_seconds', '')
+
+		return super().changelist_view(request, extra_context=extra_context)

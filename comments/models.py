@@ -48,6 +48,9 @@ class LiveChatMessage(models.Model):
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
+	# Integer order used when message is selected for display. Lower shows earlier.
+	display_order = models.IntegerField(null=True, blank=True, db_index=True)
+
 	class Meta:
 		ordering = ['-published_at']
 
@@ -60,3 +63,15 @@ class LiveChatMessage(models.Model):
 		self.status = self.Status.SENT
 		self.sent_at = timezone.now()
 		self.save(update_fields=['status', 'note', 'sent_at', 'updated_at'])
+
+
+class ManageableLiveChatMessage(LiveChatMessage):
+	"""Proxy model used to expose a custom admin entry that redirects
+	to the manage-comments admin UI.
+	"""
+
+	class Meta:
+		proxy = True
+		verbose_name = 'Manage live chat'
+		verbose_name_plural = 'Manage live chat'
+
