@@ -69,7 +69,7 @@ def reorder_manage_api(request):
 	try:
 		payload = json.loads(request.body.decode('utf-8'))
 		order = payload.get('order', [])
-	except Exception:
+	except (UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError):
 		return HttpResponseBadRequest('Bad payload')
 
 	if not isinstance(order, list):
