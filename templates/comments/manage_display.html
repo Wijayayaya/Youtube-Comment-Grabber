@@ -36,6 +36,9 @@
   }
 
   const CSRF = csrftoken || getCookie("csrftoken");
+  if (!CSRF) {
+    console.error("CSRF token not found in DOM or cookies; API requests requiring CSRF protection may fail.");
+  }
 
   function fetchMessages() {
     fetch('{% url "comments:manage-messages-api" %}')
