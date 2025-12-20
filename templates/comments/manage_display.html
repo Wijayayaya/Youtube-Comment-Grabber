@@ -1,0 +1,158 @@
+{% extends 'admin/base.html' %} {% load static %} {% block content %}
+<h1>Manage Display Comments</h1>
+
+<div style="margin-bottom: 1rem">
+  <label for="rotation-seconds">Rotation seconds (applies to all messages):</label>
+  <input id="rotation-seconds" name="seconds" type="number" min="1" style="width:6rem" value="{{ current_rotation_seconds|default:'' }}" />
+  <button id="save-rotation">Save</button>
+</div>
+
+<div>
+  <h2>Selected Messages (All Streams)</h2>
+  <p>Seret untuk mengurutkan. Klik <strong>Save Order</strong> untuk menyimpan urutan global.</p>
+  <table id="messages-table" style="width: 100%; border-collapse: collapse; max-width: 1000px">
+    <thead>
+      <tr style="text-align: left; border-bottom: 1px solid #ddd">
+        <th style="width: 6rem">Order</th>
+        <th>Author</th>
+        <th>Message</th>
+        <th>Stream</th>
+      </tr>
+    </thead>
+    <tbody id="messages-list" style="list-style: none; padding: 0"></tbody>
+  </table>
+  <div style="margin-top: 0.5rem">
+    <button id="save-order">Save Order</button>
+  </div>
+</div>
+
+<script>
+  const csrftoken = document.querySelector("input[name=csrfmiddlewaretoken]")?.value || null;
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
+
+  const CSRF = csrftoken || getCookie("csrftoken");
+
+  function fetchMessages() {
+    fetch('{% url "comments:manage-messages-api" %}')
+      .then((r) => r.json())
+      .then((data) => {
+        const tbody = document.getElementById("messages-list");
+        tbody.innerHTML = "";
+        data.messages.forEach((m, idx) => {
+          const tr = document.createElement("tr");
+          tr.draggable = true;
+          tr.dataset.id = m.id;
+          tr.style.borderBottom = "1px solid #eee";
+          tr.innerHTML = `
+          <td style="padding:8px">${m.display_order || ""}</td>
+          <td style="padding:8px"><strong>${m.author}</strong></td>
+          <td style="padding:8px">${m.text}</td>
+          <td style="padding:8px">${m.live_stream_title || m.video_id || ""}</td>
+        `;
+          tbody.appendChild(tr);
+        });
+        attachDnD();
+      });
+  }
+
+  function attachDnD() {
+    const list = document.getElementById("messages-list");
+    let dragEl = null;
+
+    function refreshOrderNumbers() {
+      Array.from(list.querySelectorAll("tr")).forEach((r, i) => {
+        const first = r.querySelector("td");
+        if (first) first.textContent = i + 1;
+      });
+    }
+
+    list.querySelectorAll("tr").forEach((row) => {
+      row.addEventListener("dragstart", (e) => {
+        dragEl = row;
+        row.style.opacity = 0.5;
+        e.dataTransfer.effectAllowed = "move";
+      });
+      row.addEventListener("dragend", (e) => {
+        if (dragEl) dragEl.style.opacity = "";
+        dragEl = null;
+      });
+
+      // More accurate dragover: decide insert before/after based on cursor position
+      row.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!dragEl || row === dragEl) return;
+        const rect = row.getBoundingClientRect();
+        const offset = e.clientY - rect.top;
+        const half = rect.height / 2;
+        if (offset < half) {
+          // insert before this row
+          if (row.previousSibling !== dragEl) list.insertBefore(dragEl, row);
+        } else {
+          // insert after this row
+          if (row.nextSibling !== dragEl) list.insertBefore(dragEl, row.nextSibling);
+        }
+      });
+
+      row.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (!dragEl) return;
+        // ensure visible order numbers update
+        refreshOrderNumbers();
+      });
+    });
+
+    // expose refresh to outer scope for initial numbering
+    if (!window._manageRefreshOrder) window._manageRefreshOrder = refreshOrderNumbers;
+  }
+
+  window.addEventListener("load", () => {
+    fetchMessages();
+  });
+
+  document.getElementById("save-order").addEventListener("click", () => {
+    const list = document.getElementById("messages-list");
+    const ids = Array.from(list.querySelectorAll("tr")).map((tr) => parseInt(tr.dataset.id, 10));
+    fetch('{% url "comments:manage-reorder-api" %}', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": CSRF,
+      },
+      body: JSON.stringify({ order: ids }),
+    })
+      .then((r) => r.json())
+      .then((js) => {
+        if (js.status === "ok") alert("Order saved");
+        else alert("Error");
+      });
+  });
+
+  document.getElementById("save-rotation").addEventListener("click", () => {
+    const seconds = document.getElementById("rotation-seconds").value;
+    if (!seconds) {
+      alert("Masukkan nilai detik");
+      return;
+    }
+    const form = new FormData();
+    form.append("seconds", seconds);
+    fetch('{% url "comments:manage-update-rotation" %}', {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": CSRF,
+      },
+      body: form,
+    })
+      .then((r) => r.json())
+      .then((js) => {
+        if (js.status === "ok") alert("Rotation updated for " + js.updated_streams + " streams");
+        else alert("Error");
+      });
+  });
+</script>
+
+{% endblock %}
