@@ -9,40 +9,106 @@
       body {
         height: 100%;
         margin: 0;
+        background: transparent;
+        overflow: hidden;
       }
       body {
-        background: white;
         color: #111;
         font-family: Arial, Helvetica, sans-serif;
         display: flex;
         align-items: center;
-        justify-content: left;
+        justify-content: center;
+        padding: 32px 24px;
       }
       .card {
         display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 24px;
-        border-radius: 6px;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 10px; /* samakan jarak kiri dengan atas/bawah */
+        border-radius: 14px;
+        width: 90vw; /* ubah lebar di sini jika mau lebih/kurang panjang */
+        max-width: 1200px; /* batas lebar maksimum */
+        min-width: 520px;
+        height: 156px; /* pas dengan avatar + padding, tetap ramping untuk 2 baris */
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 248, 248, 0.96));
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26);
+        border: 2px solid #e1251b;
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      .card::before {
+          display: none; /* bar oranye kiri dihilangkan */
       }
       .avatar {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
+        width: 132px;
+        height: 132px;
+        border-radius: 20px;
         object-fit: cover;
         background: #eee;
+        border: 6px solid #e1251b;
+        box-sizing: border-box;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+        align-self: center; /* center avatar vertically while text stays top */
       }
       .meta {
         display: flex;
         flex-direction: column;
+        flex: 1;
+        max-width: 100%;
+        height: auto;
+        justify-content: flex-start;
+        align-self: stretch;
+        padding-left: 12px;
       }
       .author {
         font-weight: 700;
-        font-size: 1.4rem;
+        font-size: 2.05rem; /* perbesar agar ruang vertikal lebih terisi */
+        color: #d81e0e;
+        white-space: nowrap; /* keep username on one line */
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .message {
-        font-size: 1.2rem;
-        margin-top: 8px;
+        font-size: 1.4rem;
+        line-height: 1.5;
+        margin-top: 6px;
+        max-height: 68px; /* batasi agar hanya 2 baris terlihat */
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* potong ke 2 baris saja */
+        -webkit-box-orient: vertical;
+      }
+
+      /* hide scrollbars inside the message for clean overlay */
+      .message::-webkit-scrollbar {
+        display: none;
+      }
+      .message {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 16px;
+        }
+        .card {
+          flex-direction: column;
+          align-items: flex-start;
+          width: 95vw;
+          min-width: auto;
+          height: auto;
+        }
+        .meta {
+          max-width: 100%;
+        }
+        .avatar {
+          width: 110px;
+          height: 110px;
+        }
       }
     </style>
   </head>

@@ -14,6 +14,7 @@ class LiveStreamAdmin(admin.ModelAdmin):
 
 
 
+
 @admin.register(LiveChatMessage)
 class LiveChatMessageAdmin(admin.ModelAdmin):
 	def author_avatar(self, obj):
@@ -23,7 +24,12 @@ class LiveChatMessageAdmin(admin.ModelAdmin):
 
 	author_avatar.short_description = 'Avatar'
 
-	list_display = ('message_id', 'live_stream', 'author_avatar', 'author_name', 'display_selected', 'status', 'published_at')
+	def full_message(self, obj):
+		return obj.message_text
+
+	full_message.short_description = 'Message'
+
+	list_display = ('message_id', 'live_stream', 'author_avatar', 'author_name', 'full_message', 'display_selected', 'status', 'published_at')
 	list_filter = ('status', 'live_stream__video_id', 'display_selected')
 	list_editable = ('display_selected',)
 	list_display_links = ('message_id',)
