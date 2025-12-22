@@ -2,11 +2,25 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import views
+from . import admin_views
 
 app_name = "comments"
 
 urlpatterns = [
-    path("", RedirectView.as_view(pattern_name='admin:index', permanent=False), name="root-redirect"),
+    # Redirect root to admin dashboard
+    path("", RedirectView.as_view(pattern_name='comments:admin-dashboard', permanent=False), name="root-redirect"),
+    
+    # Admin Dashboard Views (using admin_templates)
+    path("admin/dashboard/", admin_views.admin_dashboard, name="admin-dashboard"),
+    path("admin/livestreams/", admin_views.livestream_list, name="admin-livestream-list"),
+    path("admin/livestreams/add/", admin_views.livestream_add, name="admin-livestream-add"),
+    path("admin/livestreams/<int:pk>/edit/", admin_views.livestream_edit, name="admin-livestream-edit"),
+    path("admin/livestreams/<int:pk>/delete/", admin_views.livestream_delete, name="admin-livestream-delete"),
+    path("admin/messages/", admin_views.livechatmessage_list, name="admin-livechatmessage-list"),
+    path("admin/messages/<int:pk>/", admin_views.livechatmessage_detail, name="admin-livechatmessage-detail"),
+    path("admin/messages/bulk-action/", admin_views.livechatmessage_bulk_action, name="admin-livechatmessage-bulk-action"),
+    
+    # Original functionality (keeping URLs unchanged)
     path("messages/<int:pk>/status/", views.update_message_status, name="message-status"),
     path("display/", views.display, name="display"),
     path("manage/", views.manage_display, name="manage-display"),
@@ -20,5 +34,4 @@ urlpatterns = [
         views.mark_message_sent_api,
         name="message-mark-sent",
     ),
-    # OBS send endpoint removed; display management is handled via admin/actions and display API.
 ]

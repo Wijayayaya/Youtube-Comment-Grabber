@@ -1,0 +1,195 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <title>{% block title %}YouTube Comment Dashboard{% endblock %}</title>
+  <!-- [Meta] -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  <!-- [Favicon] icon -->
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+  
+  <!-- [Font] Family -->
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- [Tabler Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/tabler-icons.min.css' %}">
+  
+  <!-- [Feather Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/feather.css' %}">
+  
+  <!-- [Font Awesome Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/fontawesome.css' %}">
+  
+  <!-- [Material Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/material.css' %}">
+  
+  <!-- [Template CSS Files] -->
+  <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" id="main-style-link">
+  <link rel="stylesheet" href="{% static 'assets/css/style-preset.css' %}">
+  
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body data-pc-preset="preset-1" data-pc-sidebar-theme="dark" data-pc-sidebar-caption="true" data-pc-direction="ltr" data-pc-theme="dark">
+  
+  <!-- [ Pre-loader ] start -->
+  <div class="loader-bg">
+    <div class="loader-track">
+      <div class="loader-fill"></div>
+    </div>
+  </div>
+  <!-- [ Pre-loader ] End -->
+
+  <!-- [ Sidebar Menu ] start -->
+  <nav class="pc-sidebar">
+    <div class="navbar-wrapper">
+      <div class="m-header">
+        <a href="{% url 'comments:admin-dashboard' %}" class="b-brand text-primary">
+          <i data-feather="youtube" style="width: 32px; height: 32px;"></i>
+          <span class="badge bg-danger rounded-pill ms-2 theme-version">YT</span>
+        </a>
+      </div>
+      <div class="navbar-content">
+        <ul class="pc-navbar">
+          
+          <li class="pc-item pc-caption">
+            <label>Navigation</label>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-dashboard' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="home"></i></span>
+              <span class="pc-mtext">Dashboard</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-livestream-list' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="youtube"></i></span>
+              <span class="pc-mtext">Live Streams</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-livechatmessage-list' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="message-circle"></i></span>
+              <span class="pc-mtext">Chat Messages</span>
+            </a>
+          </li>
+          
+          <li class="pc-item pc-caption">
+            <label>Management</label>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:manage-display' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="monitor"></i></span>
+              <span class="pc-mtext">Manage Display</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:display' %}" class="pc-link" target="_blank">
+              <span class="pc-micon"><i data-feather="tv"></i></span>
+              <span class="pc-mtext">OBS Display</span>
+            </a>
+          </li>
+          
+          {% if request.user.is_superuser %}
+          <li class="pc-item pc-caption">
+            <label>Admin</label>
+          </li>
+          <li class="pc-item">
+            <a href="/admin/django/" class="pc-link">
+              <span class="pc-micon"><i data-feather="settings"></i></span>
+              <span class="pc-mtext">Django Admin</span>
+            </a>
+          </li>
+          {% endif %}
+          
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <!-- [ Sidebar Menu ] end -->
+
+  <!-- [ Header Topbar ] start -->
+  <header class="pc-header">
+    <div class="header-wrapper">
+      <div class="me-auto pc-mob-drp">
+        <ul class="list-unstyled">
+          <li class="pc-h-item pc-sidebar-collapse">
+            <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
+              <i data-feather="menu"></i>
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="ms-auto">
+        <ul class="list-unstyled">
+          <li class="dropdown pc-h-item">
+            <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
+              <i data-feather="user"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end pc-h-dropdown">
+              <div class="dropdown-header d-flex align-items-center justify-content-between">
+                <h5 class="m-0">Profile</h5>
+              </div>
+              <div class="dropdown-divider"></div>
+              <a href="#" class="dropdown-item">
+                <i data-feather="user"></i>
+                <span>{{ request.user.username }}</span>
+              </a>
+              <div class="dropdown-divider"></div>
+              <a href="/admin/logout/" class="dropdown-item">
+                <i data-feather="log-out"></i>
+                <span>Logout</span>
+              </a>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+  <!-- [ Header Topbar ] end -->
+
+  <!-- [ Main Content ] start -->
+  <div class="pc-container">
+    <div class="pc-content">
+      
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      
+      {% block content %}{% endblock %}
+      
+    </div>
+  </div>
+  <!-- [ Main Content ] end -->
+
+  <!-- Required Js -->
+  <script src="{% static 'assets/js/plugins/popper.min.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/simplebar.min.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/bootstrap.min.js' %}"></script>
+  <script src="{% static 'assets/js/fonts/custom-font.js' %}"></script>
+  <script src="{% static 'assets/js/pcoded.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
+  
+  <script>
+    layout_change('dark');
+    layout_sidebar_change('dark');
+  </script>
+  
+  {% block extra_js %}{% endblock %}
+  
+</body>
+</html>

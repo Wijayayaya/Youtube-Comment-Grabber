@@ -1,0 +1,392 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Chat Messages - YouTube Comment Grabber{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">Chat Messages</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item" aria-current="page">Chat Messages</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<!-- Filter & Actions -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <form method="get" action="{% url 'comments:admin-livechatmessage-list' %}">
+          <div class="row align-items-end">
+            <div class="col-md-3">
+              <label class="form-label">Search</label>
+              <input type="text" name="search" class="form-control" placeholder="Author or message..." value="{{ search_query }}">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select">
+                <option value="">All Status</option>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Stream</label>
+              <select name="stream" class="form-select">
+                <option value="">All Streams</option>
+                {% for stream in streams %}
+                  <option value="{{ stream.video_id }}" {% if stream_filter == stream.video_id %}selected{% endif %}>
+                    {{ stream.title|default:stream.video_id }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Display</label>
+              <select name="display" class="form-select">
+                <option value="">All</option>
+                <option value="true" {% if display_filter == 'true' %}selected{% endif %}>Selected</option>
+                <option value="false" {% if display_filter == 'false' %}selected{% endif %}>Not Selected</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="feather icon-search"></i> Filter
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Messages Table -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>All Messages ({{ page_obj.paginator.count }} total)</h5>
+      </div>
+      <div class="card-body">
+        
+        <!-- Bulk Actions -->
+        <form method="post" action="{% url 'comments:admin-livechatmessage-bulk-action' %}" id="bulk-form">
+          {% csrf_token %}
+          
+          <!-- Quick Action Buttons (Only show when 4+ messages selected) -->
+          <div id="quick-actions" class="d-none mb-3">
+            <div class="alert alert-info d-flex align-items-center justify-content-between">
+              <div>
+                <i class="feather icon-info-circle"></i>
+                <span id="selected-count">0</span> messages selected
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success" onclick="markForDisplay()">
+                  <i class="feather icon-monitor"></i> Add to Display
+                </button>
+                <button type="button" class="btn btn-warning" onclick="unmarkForDisplay()">
+                  <i class="feather icon-eye-off"></i> Remove from Display
+                </button>
+                <button type="button" class="btn btn-info" onclick="markAsSent()">
+                  <i class="feather icon-send"></i> Mark as Sent
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <select name="action" class="form-select" style="max-width: 200px;">
+              <option value="">More Actions...</option>
+              <option value="mark_display">Mark for Display</option>
+              <option value="unmark_display">Unmark for Display</option>
+              <option value="mark_sent">Mark as Sent</option>
+              <option value="mark_ignored">Mark as Ignored</option>
+              <option value="delete">Delete</option>
+            </select>
+            <button type="submit" class="btn btn-primary" 
+                    onclick="return confirm('Apply this action to selected messages?');">
+              <i class="feather icon-check"></i> Apply
+            </button>
+            
+            <div class="vr mx-2"></div>
+            
+            <!-- Selection Buttons -->
+            <button type="button" class="btn btn-outline-secondary" onclick="selectAll()">
+              <i class="feather icon-check-square"></i> Select All
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="deselectAll()">
+              <i class="feather icon-square"></i> Deselect All
+            </button>
+          </div>
+        
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">
+                    <input type="checkbox" id="select-all-checkbox" onclick="toggleAll(this)">
+                  </th>
+                  <th>Avatar</th>
+                  <th>Author</th>
+                  <th>Message</th>
+                  <th>Stream</th>
+                  <th>Status</th>
+                  <th>Display</th>
+                  <th>Published</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for message in page_obj %}
+                <tr>
+                  <td>
+                    <input type="checkbox" name="message_ids" value="{{ message.id }}" class="message-checkbox">
+                  </td>
+                  <td>
+                    {% if message.author_profile_image_url %}
+                      <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}" 
+                           style="width: 36px; height: 36px; border-radius: 50%;">
+                    {% else %}
+                      <div style="width: 36px; height: 36px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;">
+                        <i class="feather icon-user text-white"></i>
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td><strong>{{ message.author_name }}</strong></td>
+                  <td>{{ message.message_text|truncatewords:15 }}</td>
+                  <td><small>{{ message.live_stream.title|default:message.live_stream.video_id }}</small></td>
+                  <td>
+                    <span class="badge 
+                      {% if message.status == 'new' %}bg-info
+                      {% elif message.status == 'reviewed' %}bg-warning
+                      {% elif message.status == 'sent' %}bg-success
+                      {% else %}bg-danger{% endif %}">
+                      {{ message.get_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if message.display_selected %}
+                      <button type="button" class="btn btn-sm btn-success" 
+                              onclick="toggleDisplay({{ message.pk }}, false)" 
+                              title="Click to remove from display">
+                        <i class="feather icon-eye"></i> On
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-sm btn-secondary" 
+                              onclick="toggleDisplay({{ message.pk }}, true)" 
+                              title="Click to add to display">
+                        <i class="feather icon-eye-off"></i> Off
+                      </button>
+                    {% endif %}
+                  </td>
+                  <td><small>{{ message.published_at|date:"d M Y H:i" }}</small></td>
+                  <td>
+                    <a href="{% url 'comments:admin-livechatmessage-detail' message.pk %}" class="btn btn-sm btn-info" title="View/Edit">
+                      <i class="feather icon-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="9" class="text-center text-muted">No messages found</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center mt-3">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
+              </li>
+            {% endif %}
+            
+            <li class="page-item active">
+              <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle display for individual message (AJAX - no page reload)
+function toggleDisplay(messageId, setToDisplay) {
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  
+  // Get the button element (even if user clicked the icon inside)
+  let button = event.target;
+  if (button.tagName === 'I') {
+    button = button.closest('button');
+  }
+  
+  // Disable button during request
+  button.disabled = true;
+  
+  const formData = new FormData();
+  formData.append('csrfmiddlewaretoken', csrfToken);
+  formData.append('display_selected', setToDisplay ? 'on' : '');
+  
+  fetch(`/admin/messages/${messageId}/`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => {
+    if (response.ok) {
+      // Toggle button appearance without page reload
+      if (setToDisplay) {
+        button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false)" title="Click to remove from display">
+          <i class="feather icon-eye"></i> On
+        </button>`;
+      } else {
+        button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true)" title="Click to add to display">
+          <i class="feather icon-eye-off"></i> Off
+        </button>`;
+      }
+    } else {
+      alert('Failed to update display status');
+      button.disabled = false;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('An error occurred');
+    button.disabled = false;
+  });
+}
+
+function toggleAll(source) {
+  const checkboxes = document.querySelectorAll('.message-checkbox');
+  checkboxes.forEach(cb => cb.checked = source.checked);
+  updateQuickActions();
+}
+
+function selectAll() {
+  const checkboxes = document.querySelectorAll('.message-checkbox');
+  checkboxes.forEach(cb => cb.checked = true);
+  document.getElementById('select-all-checkbox').checked = true;
+  updateQuickActions();
+}
+
+function deselectAll() {
+  const checkboxes = document.querySelectorAll('.message-checkbox');
+  checkboxes.forEach(cb => cb.checked = false);
+  document.getElementById('select-all-checkbox').checked = false;
+  updateQuickActions();
+}
+
+// Update quick actions visibility based on selection count
+function updateQuickActions() {
+  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+  const count = checkedBoxes.length;
+  const quickActions = document.getElementById('quick-actions');
+  const selectedCount = document.getElementById('selected-count');
+  
+  if (count >= 4) {
+    quickActions.classList.remove('d-none');
+    selectedCount.textContent = count;
+  } else {
+    quickActions.classList.add('d-none');
+  }
+}
+
+// Add event listeners to all checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+  const checkboxes = document.querySelectorAll('.message-checkbox');
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', updateQuickActions);
+  });
+});
+
+// Quick action functions
+function markForDisplay() {
+  const form = document.getElementById('bulk-form');
+  const actionSelect = form.querySelector('select[name="action"]');
+  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+  
+  if (checkedBoxes.length === 0) {
+    alert('Please select at least one message.');
+    return;
+  }
+  
+  if (confirm(`Add ${checkedBoxes.length} message(s) to display?`)) {
+    actionSelect.value = 'mark_display';
+    form.submit();
+  }
+}
+
+function unmarkForDisplay() {
+  const form = document.getElementById('bulk-form');
+  const actionSelect = form.querySelector('select[name="action"]');
+  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+  
+  if (checkedBoxes.length === 0) {
+    alert('Please select at least one message.');
+    return;
+  }
+  
+  if (confirm(`Remove ${checkedBoxes.length} message(s) from display?`)) {
+    actionSelect.value = 'unmark_display';
+    form.submit();
+  }
+}
+
+function markAsSent() {
+  const form = document.getElementById('bulk-form');
+  const actionSelect = form.querySelector('select[name="action"]');
+  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+  
+  if (checkedBoxes.length === 0) {
+    alert('Please select at least one message.');
+    return;
+  }
+  
+  if (confirm(`Mark ${checkedBoxes.length} message(s) as sent?`)) {
+    actionSelect.value = 'mark_sent';
+    form.submit();
+  }
+}
+</script>
+{% endblock %}

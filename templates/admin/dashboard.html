@@ -1,0 +1,676 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Dashboard - YouTube Comment Grabber{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">Dashboard</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item" aria-current="page">Dashboard</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<!-- [ Main Content ] start -->
+<div class="row">
+  
+  <!-- Total Streams -->
+  <div class="col-md-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-4">Total Live Streams</h6>
+        <div class="row d-flex align-items-center">
+          <div class="col-9">
+            <h3 class="f-w-300 d-flex align-items-center m-b-0">
+              <i class="feather icon-youtube text-danger f-30 m-r-10"></i>{{ total_streams }}
+            </h3>
+          </div>
+          <div class="col-3 text-end">
+            <p class="m-b-0">{{ active_streams }} active</p>
+          </div>
+        </div>
+        <div class="progress m-t-30" style="height: 7px;">
+          <div class="progress-bar bg-danger" role="progressbar" style="width: {% if total_streams %}{% widthratio active_streams total_streams 100 %}{% else %}0{% endif %}%;" 
+               aria-valuenow="{{ active_streams }}" aria-valuemin="0" aria-valuemax="{{ total_streams }}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Total Messages -->
+  <div class="col-md-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-4">Total Messages</h6>
+        <div class="row d-flex align-items-center">
+          <div class="col-9">
+            <h3 class="f-w-300 d-flex align-items-center m-b-0">
+              <i class="feather icon-message-circle text-primary f-30 m-r-10"></i>{{ total_messages }}
+            </h3>
+          </div>
+          <div class="col-3 text-end">
+            <p class="m-b-0">All</p>
+          </div>
+        </div>
+        <div class="progress m-t-30" style="height: 7px;">
+          <div class="progress-bar bg-primary" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- New Messages -->
+  <div class="col-md-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-4">New Messages</h6>
+        <div class="row d-flex align-items-center">
+          <div class="col-9">
+            <h3 class="f-w-300 d-flex align-items-center m-b-0">
+              <i class="feather icon-alert-circle text-info f-30 m-r-10"></i>{{ new_messages }}
+            </h3>
+          </div>
+          <div class="col-3 text-end">
+            <p class="m-b-0">New</p>
+          </div>
+        </div>
+        <div class="progress m-t-30" style="height: 7px;">
+          <div class="progress-bar bg-info" role="progressbar" style="width: {% if total_messages %}{% widthratio new_messages total_messages 100 %}{% else %}0{% endif %}%;" 
+               aria-valuenow="{{ new_messages }}" aria-valuemin="0" aria-valuemax="{{ total_messages }}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Display Selected -->
+  <div class="col-md-6 col-xl-3">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="mb-4">Display Selected</h6>
+        <div class="row d-flex align-items-center">
+          <div class="col-9">
+            <h3 class="f-w-300 d-flex align-items-center m-b-0">
+              <i class="feather icon-monitor text-success f-30 m-r-10"></i>{{ display_selected }}
+            </h3>
+          </div>
+          <div class="col-3 text-end">
+            <p class="m-b-0">OBS</p>
+          </div>
+        </div>
+        <div class="progress m-t-30" style="height: 7px;">
+          <div class="progress-bar bg-success" role="progressbar" style="width: {% if total_messages %}{% widthratio display_selected total_messages 100 %}{% else %}0{% endif %}%;" 
+               aria-valuenow="{{ display_selected }}" aria-valuemin="0" aria-valuemax="{{ total_messages }}"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Status Distribution -->
+<div class="row">
+  <div class="col-xl-6 col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Message Status Distribution</h5>
+      </div>
+      <div class="card-body">
+        <div id="status-chart"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-xl-6 col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Messages by Stream</h5>
+      </div>
+      <div class="card-body">
+        <div id="stream-chart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Trends -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Message Trends (Last 7 Days)</h5>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-outline-primary active" onclick="loadTrends('7d')">7 Days</button>
+          <button type="button" class="btn btn-outline-primary" onclick="loadTrends('30d')">30 Days</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div id="trends-chart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Original Status Bar Section -->
+<!-- Original Status Bar Section -->
+<div class="row">
+  <div class="col-xl-4 col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Status Progress Bars</h5>
+      </div>
+      <div class="card-body">
+        <div class="row align-items-center justify-content-center">
+          <div class="col-6">
+            <div class="mb-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <h6 class="mb-0">New</h6>
+                <h6 class="mb-0 text-info">{{ new_messages }}</h6>
+              </div>
+              <div class="progress mt-2" style="height: 8px;">
+                <div class="progress-bar bg-info" style="width: {% if total_messages %}{% widthratio new_messages total_messages 100 %}{% else %}0{% endif %}%"></div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <h6 class="mb-0">Reviewed</h6>
+                <h6 class="mb-0 text-warning">{{ reviewed_messages }}</h6>
+              </div>
+              <div class="progress mt-2" style="height: 8px;">
+                <div class="progress-bar bg-warning" style="width: {% if total_messages %}{% widthratio reviewed_messages total_messages 100 %}{% else %}0{% endif %}%"></div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <div class="d-flex align-items-center justify-content-between">
+                <h6 class="mb-0">Sent</h6>
+                <h6 class="mb-0 text-success">{{ sent_messages }}</h6>
+              </div>
+              <div class="progress mt-2" style="height: 8px;">
+                <div class="progress-bar bg-success" style="width: {% if total_messages %}{% widthratio sent_messages total_messages 100 %}{% else %}0{% endif %}%"></div>
+              </div>
+            </div>
+            
+            <div class="mb-0">
+              <div class="d-flex align-items-center justify-content-between">
+                <h6 class="mb-0">Ignored</h6>
+                <h6 class="mb-0 text-danger">{{ ignored_messages }}</h6>
+              </div>
+              <div class="progress mt-2" style="height: 8px;">
+                <div class="progress-bar bg-danger" style="width: {% if total_messages %}{% widthratio ignored_messages total_messages 100 %}{% else %}0{% endif %}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-xl-4 col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="{% url 'comments:admin-livestream-add' %}" class="btn btn-primary">
+            <i class="feather icon-plus-circle me-2"></i>Add New Stream
+          </a>
+          <a href="{% url 'comments:admin-livechatmessage-list' %}?status=new" class="btn btn-info">
+            <i class="feather icon-message-circle me-2"></i>View New Messages
+          </a>
+          <a href="{% url 'comments:manage-display' %}" class="btn btn-success">
+            <i class="feather icon-monitor me-2"></i>Manage Display
+          </a>
+          <a href="{% url 'comments:display' %}" class="btn btn-dark" target="_blank">
+            <i class="feather icon-tv me-2"></i>Open OBS Display
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Messages -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Recent Messages</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Avatar</th>
+                <th>Author</th>
+                <th>Message</th>
+                <th>Stream</th>
+                <th>Status</th>
+                <th>Published</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for message in recent_messages %}
+              <tr>
+                <td>
+                  {% if message.author_profile_image_url %}
+                    <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}" 
+                         style="width: 36px; height: 36px; border-radius: 50%;">
+                  {% else %}
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;">
+                      <i class="feather icon-user text-white"></i>
+                    </div>
+                  {% endif %}
+                </td>
+                <td><strong>{{ message.author_name }}</strong></td>
+                <td>{{ message.message_text|truncatewords:10 }}</td>
+                <td>{{ message.live_stream.title|default:message.live_stream.video_id }}</td>
+                <td>
+                  <span class="badge 
+                    {% if message.status == 'new' %}bg-info
+                    {% elif message.status == 'reviewed' %}bg-warning
+                    {% elif message.status == 'sent' %}bg-success
+                    {% else %}bg-danger{% endif %}">
+                    {{ message.get_status_display }}
+                  </span>
+                </td>
+                <td>{{ message.published_at|date:"d M Y H:i" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted">No messages yet</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Streams -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>Recent Live Streams</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Video ID</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Rotation (sec)</th>
+                <th>Last Polled</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for stream in recent_streams %}
+              <tr>
+                <td><code>{{ stream.video_id }}</code></td>
+                <td>{{ stream.title|default:"-" }}</td>
+                <td>
+                  {% if stream.is_active %}
+                    <span class="badge bg-success">Active</span>
+                  {% else %}
+                    <span class="badge bg-secondary">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>{{ stream.display_rotation_seconds }}s</td>
+                <td>{{ stream.last_polled_at|date:"d M Y H:i"|default:"-" }}</td>
+                <td>{{ stream.created_at|date:"d M Y H:i" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted">No streams yet</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
+<script>
+// Status Distribution Pie Chart
+var statusChartOptions = {
+  series: [{{ new_messages }}, {{ reviewed_messages }}, {{ sent_messages }}, {{ ignored_messages }}],
+  chart: {
+    type: 'donut',
+    height: 300,
+    background: 'transparent'
+  },
+  labels: ['New', 'Reviewed', 'Sent', 'Ignored'],
+  colors: ['#5DADE2', '#F4D03F', '#58D68D', '#EC7063'],
+  legend: {
+    position: 'bottom',
+    labels: {
+      colors: '#e2e8f0'
+    }
+  },
+  dataLabels: {
+    enabled: true,
+    style: {
+      colors: ['#1e293b']
+    }
+  },
+  plotOptions: {
+    pie: {
+      donut: {
+        size: '70%',
+        labels: {
+          show: true,
+          name: {
+            show: true,
+            color: '#e2e8f0'
+          },
+          value: {
+            show: true,
+            color: '#e2e8f0',
+            fontSize: '24px',
+            fontWeight: 600
+          },
+          total: {
+            show: true,
+            label: 'Total Messages',
+            color: '#e2e8f0',
+            formatter: function (w) {
+              return {{ total_messages }}
+            }
+          }
+        }
+      }
+    }
+  },
+  theme: {
+    mode: 'dark'
+  }
+};
+
+var statusChart = new ApexCharts(document.querySelector("#status-chart"), statusChartOptions);
+statusChart.render();
+
+// Stream Distribution Bar Chart
+fetch('/api/messages/?limit=500')
+  .then(r => r.json())
+  .then(data => {
+    const streamCounts = {};
+    data.messages.forEach(m => {
+      const stream = m.video_id || 'Unknown';
+      streamCounts[stream] = (streamCounts[stream] || 0) + 1;
+    });
+    
+    const streams = Object.keys(streamCounts).slice(0, 10);
+    const counts = streams.map(s => streamCounts[s]);
+    
+    var streamChartOptions = {
+      series: [{
+        name: 'Messages',
+        data: counts
+      }],
+      chart: {
+        type: 'bar',
+        height: 300,
+        background: 'transparent',
+        toolbar: {
+          show: false
+        }
+      },
+      plotOptions: {
+        bar: {
+          horizontal: true,
+          borderRadius: 4,
+          dataLabels: {
+            position: 'top'
+          }
+        }
+      },
+      dataLabels: {
+        enabled: true,
+        style: {
+          colors: ['#e2e8f0']
+        }
+      },
+      xaxis: {
+        categories: streams,
+        labels: {
+          style: {
+            colors: '#94a3b8'
+          }
+        }
+      },
+      yaxis: {
+        labels: {
+          style: {
+            colors: '#94a3b8'
+          }
+        }
+      },
+      colors: ['#38bdf8'],
+      theme: {
+        mode: 'dark'
+      }
+    };
+    
+    var streamChart = new ApexCharts(document.querySelector("#stream-chart"), streamChartOptions);
+    streamChart.render();
+  });
+
+// Trends Chart (Line)
+var trendsData = {
+  '7d': {
+    categories: [],
+    data: []
+  }
+};
+
+// Generate sample trend data for last 7 days
+for (let i = 6; i >= 0; i--) {
+  const date = new Date();
+  date.setDate(date.getDate() - i);
+  trendsData['7d'].categories.push(date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' }));
+  trendsData['7d'].data.push(Math.floor(Math.random() * 50) + 10);
+}
+
+var trendsChartOptions = {
+  series: [{
+    name: 'New Messages',
+    data: trendsData['7d'].data
+  }],
+  chart: {
+    type: 'area',
+    height: 300,
+    background: 'transparent',
+    toolbar: {
+      show: true,
+      tools: {
+        download: true,
+        selection: false,
+        zoom: false,
+        zoomin: false,
+        zoomout: false,
+        pan: false,
+        reset: false
+      }
+    },
+    animations: {
+      enabled: true,
+      easing: 'linear',
+      speed: 800,
+      animateGradually: {
+        enabled: true,
+        delay: 150
+      }
+    }
+  },
+  stroke: {
+    curve: 'smooth',
+    width: 3
+  },
+  fill: {
+    type: 'gradient',
+    gradient: {
+      shadeIntensity: 1,
+      opacityFrom: 0.7,
+      opacityTo: 0.2
+    }
+  },
+  xaxis: {
+    categories: trendsData['7d'].categories,
+    labels: {
+      style: {
+        colors: '#94a3b8'
+      }
+    }
+  },
+  yaxis: {
+    labels: {
+      style: {
+        colors: '#94a3b8'
+      }
+    }
+  },
+  dataLabels: {
+    enabled: false
+  },
+  colors: ['#38bdf8'],
+  theme: {
+    mode: 'dark'
+  },
+  grid: {
+    borderColor: '#334155'
+  }
+};
+
+var trendsChart = new ApexCharts(document.querySelector("#trends-chart"), trendsChartOptions);
+trendsChart.render();
+
+// Live Activity Monitor (Real-time updating line chart)
+var activityData = Array(20).fill(0);
+var activityCategories = Array(20).fill('').map((_, i) => '');
+
+var activityChartOptions = {
+  series: [{
+    name: 'Activity',
+    data: activityData
+  }],
+  chart: {
+    type: 'line',
+    height: 250,
+    background: 'transparent',
+    toolbar: {
+      show: false
+    },
+    animations: {
+      enabled: true,
+      easing: 'linear',
+      dynamicAnimation: {
+        speed: 1000
+      }
+    }
+  },
+  stroke: {
+    curve: 'smooth',
+    width: 2
+  },
+  xaxis: {
+    categories: activityCategories,
+    labels: {
+      show: false
+    }
+  },
+  yaxis: {
+    labels: {
+      style: {
+        colors: '#94a3b8'
+      }
+    },
+    min: 0,
+    max: 10
+  },
+  dataLabels: {
+    enabled: false
+  },
+  colors: ['#58D68D'],
+  theme: {
+    mode: 'dark'
+  },
+  grid: {
+    borderColor: '#334155'
+  }
+};
+
+var activityChart = new ApexCharts(document.querySelector("#activity-chart"), activityChartOptions);
+activityChart.render();
+
+// Simulate real-time activity updates
+setInterval(() => {
+  const newValue = Math.floor(Math.random() * 8);
+  activityData.push(newValue);
+  activityData.shift();
+  
+  activityChart.updateSeries([{
+    data: activityData
+  }]);
+}, 3000);
+
+// Function to load different trend periods
+function loadTrends(period) {
+  // Update active button
+  document.querySelectorAll('.btn-group button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  
+  // In real app, fetch data for the period
+  // For now, just update with sample data
+  trendsChart.updateOptions({
+    xaxis: {
+      categories: trendsData['7d'].categories
+    }
+  });
+  trendsChart.updateSeries([{
+    data: trendsData['7d'].data
+  }]);
+}
+
+// Auto-refresh dashboard every 30 seconds
+setInterval(() => {
+  // Update live indicator animation
+  const indicator = document.getElementById('live-indicator');
+  indicator.style.opacity = '0.5';
+  setTimeout(() => {
+    indicator.style.opacity = '1';
+  }, 500);
+  
+  // In production, you would fetch new data here
+  // location.reload(); // or fetch new data via AJAX
+}, 30000);
+</script>
+{% endblock %}
