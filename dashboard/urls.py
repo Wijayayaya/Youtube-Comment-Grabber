@@ -20,15 +20,12 @@ from django.views.generic import RedirectView
 from comments import views as comments_views
 
 urlpatterns = [
-    # Redirect /admin/ to custom admin dashboard
-    path('admin/', RedirectView.as_view(pattern_name='comments:admin-dashboard', permanent=False)),
-    
-    # Keep Django admin for superuser
-    path('admin/django/', admin.site.urls, name='django-admin'),
-    
-    # Custom manage display view accessible from Django admin
-    path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
-    
-    # Include all comments URLs
+    # Include all comments URLs first (includes custom admin routes)
     path('', include('comments.urls')),
+    
+    # Django admin DISABLED - All features moved to new custom admin dashboard
+    # path('admin/django/', admin.site.urls, name='django-admin'),
+    
+    # Custom manage display view
+    # path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
 ]

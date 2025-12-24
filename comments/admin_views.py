@@ -11,6 +11,8 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.contrib.auth.models import User, Group
+from django.contrib.auth import update_session_auth_hash
 
 from .models import LiveStream, LiveChatMessage
 
@@ -253,3 +255,305 @@ def livechatmessage_bulk_action(request):
 		messages.error(request, 'Unknown action.')
 	
 	return redirect('comments:admin-livechatmessage-list')
+
+
+# ============================================
+# USER MANAGEMENT VIEWS
+# ============================================
+
+@login_required(login_url='/admin/login/')
+def user_list(request):
+	"""List all users."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	search_query = request.GET.get('search', '')
+	is_active_filter = request.GET.get('is_active', '')
+	is_staff_filter = request.GET.get('is_staff', '')
+	
+	users = User.objects.all()
+	
+	if search_query:
+		users = users.filter(
+			Q(username__icontains=search_query) |
+			Q(email__icontains=search_query) |
+			Q(first_name__icontains=search_query) |
+			Q(last_name__icontains=search_query)
+		)
+	
+	if is_active_filter:
+		users = users.filter(is_active=(is_active_filter == 'true'))
+	
+	if is_staff_filter:
+		users = users.filter(is_staff=(is_staff_filter == 'true'))
+	
+	users = users.order_by('-date_joined')
+	
+	# Pagination
+	paginator = Paginator(users, 20)
+	page_number = request.GET.get('page', 1)
+	page_obj = paginator.get_page(page_number)
+	
+	context = {
+		'page_obj': page_obj,
+		'search_query': search_query,
+		'is_active_filter': is_active_filter,
+		'is_staff_filter': is_staff_filter,
+	}
+	
+	return render(request, 'admin/user_list.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def user_add(request):
+	"""Add new user."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	if request.method == 'POST':
+		username = request.POST.get('username', '').strip()
+		email = request.POST.get('email', '').strip()
+		password = request.POST.get('password', '')
+		first_name = request.POST.get('first_name', '').strip()
+		last_name = request.POST.get('last_name', '').strip()
+		is_active = request.POST.get('is_active') == 'on'
+		is_staff = request.POST.get('is_staff') == 'on'
+		is_superuser = request.POST.get('is_superuser') == 'on'
+		
+		if not username:
+			messages.error(request, 'Username is required.')
+			return render(request, 'admin/user_form.html')
+		
+		if User.objects.filter(username=username).exists():
+			messages.error(request, f'User with username "{username}" already exists.')
+			return render(request, 'admin/user_form.html', {'username': username})
+		
+		user = User.objects.create_user(
+			username=username,
+			email=email,
+			password=password,
+			first_name=first_name,
+			last_name=last_name,
+			is_active=is_active,
+			is_staff=is_staff,
+			is_superuser=is_superuser
+		)
+		
+		# Add to groups
+		group_ids = request.POST.getlist('groups')
+		if group_ids:
+			user.groups.set(Group.objects.filter(id__in=group_ids))
+		
+		messages.success(request, f'User "{username}" added successfully.')
+		return redirect('comments:admin-user-list')
+	
+	groups = Group.objects.all()
+	context = {'groups': groups}
+	return render(request, 'admin/user_form.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def user_edit(request, pk):
+	"""Edit user."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	user = get_object_or_404(User, pk=pk)
+	
+	if request.method == 'POST':
+		user.username = request.POST.get('username', '').strip()
+		user.email = request.POST.get('email', '').strip()
+		user.first_name = request.POST.get('first_name', '').strip()
+		user.last_name = request.POST.get('last_name', '').strip()
+		user.is_active = request.POST.get('is_active') == 'on'
+		user.is_staff = request.POST.get('is_staff') == 'on'
+		user.is_superuser = request.POST.get('is_superuser') == 'on'
+		
+		# Change password if provided
+		new_password = request.POST.get('password', '')
+		if new_password:
+			user.set_password(new_password)
+		
+		user.save()
+		
+		# Update groups
+		group_ids = request.POST.getlist('groups')
+		user.groups.set(Group.objects.filter(id__in=group_ids))
+		
+		messages.success(request, f'User "{user.username}" updated successfully.')
+		return redirect('comments:admin-user-list')
+	
+	groups = Group.objects.all()
+	context = {'user_obj': user, 'groups': groups}
+	return render(request, 'admin/user_form.html', context)
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def user_delete(request, pk):
+	"""Delete user."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to perform this action.')
+		return redirect('comments:admin-dashboard')
+	
+	user = get_object_or_404(User, pk=pk)
+	
+	# Prevent deleting yourself
+	if user.pk == request.user.pk:
+		messages.error(request, 'You cannot delete your own account.')
+		return redirect('comments:admin-user-list')
+	
+	username = user.username
+	user.delete()
+	messages.success(request, f'User "{username}" deleted successfully.')
+	return redirect('comments:admin-user-list')
+
+
+@login_required(login_url='/admin/login/')
+def group_list(request):
+	"""List all groups."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	search_query = request.GET.get('search', '')
+	
+	groups = Group.objects.annotate(user_count=Count('user')).all()
+	
+	if search_query:
+		groups = groups.filter(name__icontains=search_query)
+	
+	groups = groups.order_by('name')
+	
+	# Pagination
+	paginator = Paginator(groups, 20)
+	page_number = request.GET.get('page', 1)
+	page_obj = paginator.get_page(page_number)
+	
+	context = {
+		'page_obj': page_obj,
+		'search_query': search_query,
+	}
+	
+	return render(request, 'admin/group_list.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def group_add(request):
+	"""Add new group."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	if request.method == 'POST':
+		name = request.POST.get('name', '').strip()
+		
+		if not name:
+			messages.error(request, 'Group name is required.')
+			return render(request, 'admin/group_form.html')
+		
+		if Group.objects.filter(name=name).exists():
+			messages.error(request, f'Group with name "{name}" already exists.')
+			return render(request, 'admin/group_form.html', {'name': name})
+		
+		Group.objects.create(name=name)
+		
+		messages.success(request, f'Group "{name}" added successfully.')
+		return redirect('comments:admin-group-list')
+	
+	return render(request, 'admin/group_form.html')
+
+
+@login_required(login_url='/admin/login/')
+def group_edit(request, pk):
+	"""Edit group."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+	
+	group = get_object_or_404(Group, pk=pk)
+	
+	if request.method == 'POST':
+		group.name = request.POST.get('name', '').strip()
+		group.save()
+		
+		messages.success(request, f'Group "{group.name}" updated successfully.')
+		return redirect('comments:admin-group-list')
+	
+	context = {'group': group}
+	return render(request, 'admin/group_form.html', context)
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def group_delete(request, pk):
+	"""Delete group."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to perform this action.')
+		return redirect('comments:admin-dashboard')
+	
+	group = get_object_or_404(Group, pk=pk)
+	name = group.name
+	group.delete()
+	messages.success(request, f'Group "{name}" deleted successfully.')
+	return redirect('comments:admin-group-list')
+
+
+# ============================================
+# PROFILE & PASSWORD VIEWS
+# ============================================
+
+@login_required(login_url='/admin/login/')
+def profile_view(request):
+	"""View user profile."""
+	user = request.user
+	
+	if request.method == 'POST':
+		user.first_name = request.POST.get('first_name', '').strip()
+		user.last_name = request.POST.get('last_name', '').strip()
+		user.email = request.POST.get('email', '').strip()
+		user.save()
+		
+		messages.success(request, 'Profile updated successfully.')
+		return redirect('comments:admin-profile')
+	
+	context = {'user': user}
+	return render(request, 'admin/profile.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def change_password(request):
+	"""Change user password."""
+	if request.method == 'POST':
+		old_password = request.POST.get('old_password', '')
+		new_password = request.POST.get('new_password1', '')
+		confirm_password = request.POST.get('new_password2', '')
+		
+		# Validate old password
+		if not request.user.check_password(old_password):
+			messages.error(request, 'Old password is incorrect.')
+			return render(request, 'admin/change_password.html')
+		
+		# Validate new password
+		if len(new_password) < 8:
+			messages.error(request, 'New password must be at least 8 characters long.')
+			return render(request, 'admin/change_password.html')
+		
+		if new_password != confirm_password:
+			messages.error(request, 'New passwords do not match.')
+			return render(request, 'admin/change_password.html')
+		
+		# Change password
+		request.user.set_password(new_password)
+		request.user.save()
+		
+		# Keep user logged in after password change
+		update_session_auth_hash(request, request.user)
+		
+		messages.success(request, 'Password changed successfully.')
+		return redirect('comments:admin-dashboard')
+	
+	return render(request, 'admin/change_password.html')

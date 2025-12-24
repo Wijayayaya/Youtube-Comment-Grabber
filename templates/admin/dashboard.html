@@ -25,11 +25,11 @@
 <!-- [ breadcrumb ] end -->
 
 <!-- [ Main Content ] start -->
-<div class="row">
+<div class="row mb-4 row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
   
   <!-- Total Streams -->
-  <div class="col-md-6 col-xl-3">
-    <div class="card">
+  <div class="col">
+    <div class="card h-100">
       <div class="card-body">
         <h6 class="mb-4">Total Live Streams</h6>
         <div class="row d-flex align-items-center">
@@ -51,8 +51,8 @@
   </div>
   
   <!-- Total Messages -->
-  <div class="col-md-6 col-xl-3">
-    <div class="card">
+  <div class="col">
+    <div class="card h-100">
       <div class="card-body">
         <h6 class="mb-4">Total Messages</h6>
         <div class="row d-flex align-items-center">
@@ -73,8 +73,8 @@
   </div>
   
   <!-- New Messages -->
-  <div class="col-md-6 col-xl-3">
-    <div class="card">
+  <div class="col">
+    <div class="card h-100">
       <div class="card-body">
         <h6 class="mb-4">New Messages</h6>
         <div class="row d-flex align-items-center">
@@ -96,8 +96,8 @@
   </div>
   
   <!-- Display Selected -->
-  <div class="col-md-6 col-xl-3">
-    <div class="card">
+  <div class="col">
+    <div class="card h-100">
       <div class="card-body">
         <h6 class="mb-4">Display Selected</h6>
         <div class="row d-flex align-items-center">
@@ -367,17 +367,30 @@ var statusChartOptions = {
     background: 'transparent'
   },
   labels: ['New', 'Reviewed', 'Sent', 'Ignored'],
-  colors: ['#5DADE2', '#F4D03F', '#58D68D', '#EC7063'],
+  colors: ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'],
   legend: {
     position: 'bottom',
     labels: {
-      colors: '#e2e8f0'
+      colors: '#ffffff'
     }
   },
   dataLabels: {
     enabled: true,
     style: {
       colors: ['#1e293b']
+    }
+  },
+  states: {
+    hover: {
+      filter: {
+        type: 'lighten',
+        value: 0.15
+      }
+    },
+    active: {
+      filter: {
+        type: 'none'
+      }
     }
   },
   plotOptions: {
@@ -388,18 +401,18 @@ var statusChartOptions = {
           show: true,
           name: {
             show: true,
-            color: '#e2e8f0'
+            color: '#ffffff'
           },
           value: {
             show: true,
-            color: '#e2e8f0',
+            color: '#ffffff',
             fontSize: '24px',
             fontWeight: 600
           },
           total: {
             show: true,
             label: 'Total Messages',
-            color: '#e2e8f0',
+            color: '#ffffff',
             formatter: function (w) {
               return {{ total_messages }}
             }
@@ -413,13 +426,20 @@ var statusChartOptions = {
   }
 };
 
-var statusChart = new ApexCharts(document.querySelector("#status-chart"), statusChartOptions);
-statusChart.render();
+// Render status chart only if element exists
+const statusChartEl = document.querySelector("#status-chart");
+if (statusChartEl) {
+  var statusChart = new ApexCharts(statusChartEl, statusChartOptions);
+  statusChart.render();
+}
 
 // Stream Distribution Bar Chart
 fetch('/api/messages/?limit=500')
   .then(r => r.json())
   .then(data => {
+    const streamChartEl = document.querySelector("#stream-chart");
+    if (!streamChartEl) return;
+    
     const streamCounts = {};
     data.messages.forEach(m => {
       const stream = m.video_id || 'Unknown';
@@ -454,32 +474,51 @@ fetch('/api/messages/?limit=500')
       dataLabels: {
         enabled: true,
         style: {
-          colors: ['#e2e8f0']
-        }
+          colors: ['#ffffff'],
+          fontSize: '12px',
+          fontWeight: 'bold'
+        },
+        offsetX: -10
       },
       xaxis: {
         categories: streams,
         labels: {
           style: {
-            colors: '#94a3b8'
+            colors: '#ffffff'
           }
         }
       },
       yaxis: {
         labels: {
           style: {
-            colors: '#94a3b8'
+            colors: '#ffffff'
           }
         }
       },
-      colors: ['#38bdf8'],
+      colors: ['#3b82f6'],
+      fill: {
+        type: 'gradient',
+        gradient: {
+          shade: 'dark',
+          type: 'horizontal',
+          shadeIntensity: 0.5,
+          gradientToColors: ['#06b6d4'],
+          inverseColors: false,
+          opacityFrom: 1,
+          opacityTo: 0.85,
+          stops: [0, 100]
+        }
+      },
       theme: {
         mode: 'dark'
       }
     };
     
-    var streamChart = new ApexCharts(document.querySelector("#stream-chart"), streamChartOptions);
+    var streamChart = new ApexCharts(streamChartEl, streamChartOptions);
     streamChart.render();
+  })
+  .catch(err => {
+    console.log('Failed to load stream chart data:', err);
   });
 
 // Trends Chart (Line)
@@ -568,8 +607,12 @@ var trendsChartOptions = {
   }
 };
 
-var trendsChart = new ApexCharts(document.querySelector("#trends-chart"), trendsChartOptions);
-trendsChart.render();
+// Render trends chart only if element exists
+const trendsChartEl = document.querySelector("#trends-chart");
+if (trendsChartEl) {
+  var trendsChart = new ApexCharts(trendsChartEl, trendsChartOptions);
+  trendsChart.render();
+}
 
 // Live Activity Monitor (Real-time updating line chart)
 var activityData = Array(20).fill(0);
@@ -626,11 +669,18 @@ var activityChartOptions = {
   }
 };
 
-var activityChart = new ApexCharts(document.querySelector("#activity-chart"), activityChartOptions);
-activityChart.render();
+// Render activity chart only if element exists
+const activityChartEl = document.querySelector("#activity-chart");
+let activityChart;
+if (activityChartEl) {
+  activityChart = new ApexCharts(activityChartEl, activityChartOptions);
+  activityChart.render();
+}
 
 // Simulate real-time activity updates
 setInterval(() => {
+  if (!activityChart) return;
+  
   const newValue = Math.floor(Math.random() * 8);
   activityData.push(newValue);
   activityData.shift();
@@ -642,6 +692,8 @@ setInterval(() => {
 
 // Function to load different trend periods
 function loadTrends(period) {
+  if (typeof trendsChart === 'undefined') return;
+  
   // Update active button
   document.querySelectorAll('.btn-group button').forEach(btn => {
     btn.classList.remove('active');
@@ -664,10 +716,12 @@ function loadTrends(period) {
 setInterval(() => {
   // Update live indicator animation
   const indicator = document.getElementById('live-indicator');
-  indicator.style.opacity = '0.5';
-  setTimeout(() => {
-    indicator.style.opacity = '1';
-  }, 500);
+  if (indicator) {
+    indicator.style.opacity = '0.5';
+    setTimeout(() => {
+      indicator.style.opacity = '1';
+    }, 500);
+  }
   
   // In production, you would fetch new data here
   // location.reload(); // or fetch new data via AJAX

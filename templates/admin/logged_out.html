@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <title>Logged Out - YouTube Comment Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'assets/fonts/tabler-icons.min.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/fonts/feather.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/style-preset.css' %}">
+</head>
+
+<body data-pc-preset="preset-1" data-pc-sidebar-theme="dark" data-pc-sidebar-caption="true" data-pc-direction="ltr" data-pc-theme="dark">
+  
+  <div class="auth-main">
+    <div class="auth-wrapper v1">
+      <div class="auth-form">
+        <div class="card my-5">
+          <div class="card-body text-center">
+            <i data-feather="log-out" style="width: 48px; height: 48px; color: #4CAF50;"></i>
+            <h4 class="f-w-500 mb-1 mt-3">Logout Berhasil</h4>
+            <p class="mb-4">Terima kasih telah menggunakan YouTube Comment Dashboard</p>
+            <p class="text-muted">Redirecting to login page...</p>
+            <div class="spinner-border text-primary mt-3" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="d-grid mt-4">
+              <a href="{% url 'comments:admin-login' %}" class="btn btn-primary">
+                <i data-feather="log-in"></i> Login Kembali
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
+  <script>
+    feather.replace();
+    // Auto redirect after 2 seconds
+    setTimeout(function() {
+      window.location.href = "{% url 'comments:admin-login' %}";
+    }, 2000);
+  </script>
+
+</body>
+</html>

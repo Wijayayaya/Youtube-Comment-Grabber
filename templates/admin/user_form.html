@@ -1,0 +1,163 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}{% if user_obj %}Edit{% else %}Add{% endif %} User - YouTube Comment Grabber{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">{% if user_obj %}Edit{% else %}Add{% endif %} User</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-user-list' %}">Users</a></li>
+          <li class="breadcrumb-item" aria-current="page">{% if user_obj %}Edit{% else %}Add{% endif %}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<!-- Form -->
+<div class="row">
+  <div class="col-md-8 offset-md-2">
+    <div class="card">
+      <div class="card-header">
+        <h5>{% if user_obj %}Edit User: {{ user_obj.username }}{% else %}Add New User{% endif %}</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          
+          <div class="mb-3">
+            <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="username" name="username" 
+                   value="{% if user_obj %}{{ user_obj.username }}{% endif %}" 
+                   {% if user_obj %}readonly{% endif %} required>
+            <small class="form-text text-muted">Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.</small>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="first_name" class="form-label">First Name</label>
+              <input type="text" class="form-control" id="first_name" name="first_name" 
+                     value="{% if user_obj %}{{ user_obj.first_name }}{% endif %}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="last_name" class="form-label">Last Name</label>
+              <input type="text" class="form-control" id="last_name" name="last_name" 
+                     value="{% if user_obj %}{{ user_obj.last_name }}{% endif %}">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" 
+                   value="{% if user_obj %}{{ user_obj.email }}{% endif %}">
+          </div>
+          
+          <div class="mb-3">
+            <label for="password" class="form-label">Password {% if user_obj %}<small class="text-muted">(leave blank to keep current)</small>{% else %}<span class="text-danger">*</span>{% endif %}</label>
+            <input type="password" class="form-control" id="password" name="password" 
+                   {% if not user_obj %}required{% endif %}>
+            <small class="form-text text-muted">{% if user_obj %}Enter new password to change it.{% else %}Raw password will be saved securely.{% endif %}</small>
+          </div>
+          
+          <hr>
+          
+          <h6 class="mb-3">Permissions</h6>
+          
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                     {% if user_obj %}{% if user_obj.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+              <label class="form-check-label" for="is_active">
+                Active
+              </label>
+              <small class="form-text text-muted d-block">Designates whether this user should be treated as active.</small>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="is_staff" name="is_staff" 
+                     {% if user_obj %}{% if user_obj.is_staff %}checked{% endif %}{% endif %}>
+              <label class="form-check-label" for="is_staff">
+                Staff status
+              </label>
+              <small class="form-text text-muted d-block">Designates whether the user can log into this admin site.</small>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="is_superuser" name="is_superuser" 
+                     {% if user_obj %}{% if user_obj.is_superuser %}checked{% endif %}{% endif %}>
+              <label class="form-check-label" for="is_superuser">
+                Superuser status
+              </label>
+              <small class="form-text text-muted d-block">Designates that this user has all permissions without explicitly assigning them.</small>
+            </div>
+          </div>
+          
+          <hr>
+          
+          <div class="mb-3">
+            <label class="form-label">Groups</label>
+            {% if groups %}
+              {% for group in groups %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="group_{{ group.pk }}" name="groups" value="{{ group.pk }}"
+                       {% if user_obj %}{% if group in user_obj.groups.all %}checked{% endif %}{% endif %}>
+                <label class="form-check-label" for="group_{{ group.pk }}">
+                  {{ group.name }}
+                </label>
+              </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">No groups available. <a href="{% url 'comments:admin-group-add' %}">Create one</a>.</p>
+            {% endif %}
+          </div>
+          
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="feather icon-save"></i> {% if user_obj %}Update{% else %}Add{% endif %} User
+            </button>
+            <a href="{% url 'comments:admin-user-list' %}" class="btn btn-secondary">
+              <i class="feather icon-x"></i> Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    {% if user_obj and user_obj.pk != request.user.pk %}
+    <div class="card mt-3">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">Danger Zone</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">
+          Once you delete a user, there is no going back. Please be certain.
+        </p>
+        <form method="post" action="{% url 'comments:admin-user-delete' user_obj.pk %}" 
+              onsubmit="return confirm('Are you sure you want to delete this user? This cannot be undone!');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">
+            <i class="feather icon-trash-2"></i> Delete User
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
