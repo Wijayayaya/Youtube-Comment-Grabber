@@ -102,7 +102,7 @@ pipeline {
                     sudo -n systemctl restart "$SERVICE_WEB" "$SERVICE_POLL" || true
 
                     cd "$RELEASES_DIR"
-                    OLD_RELEASES=$(ls -1dt ${APP_NAME}-* 2>/dev/null | tail -n +6 || true)
+                    OLD_RELEASES=$(ls -1dt "${APP_NAME}"-* 2>/dev/null | tail -n +6 || true)
                     if [ -n "$OLD_RELEASES" ]; then
                         echo "Menghapus release lama:"
                         echo "$OLD_RELEASES" | tr ' ' '\n'
