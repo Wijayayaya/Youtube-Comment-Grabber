@@ -54,7 +54,7 @@ pipeline {
                         comments \
                         dashboard \
                         templates \
-                        static || true
+                        static
                 '''
                 stash name: 'artifact', includes: "${ARTIFACT}"
                 archiveArtifacts artifacts: "${ARTIFACT}", fingerprint: true
