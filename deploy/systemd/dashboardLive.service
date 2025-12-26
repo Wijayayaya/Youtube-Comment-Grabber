@@ -1,0 +1,15 @@
+[Unit]
+Description=YouTube Chat Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/youtube_chat_dashboard/current
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/var/www/youtube_chat_dashboard/current/.venv/bin/gunicorn --workers 3 --bind 127.0.0.1:8000 dashboard.wsgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
