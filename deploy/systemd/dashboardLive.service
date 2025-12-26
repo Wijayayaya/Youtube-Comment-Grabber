@@ -9,7 +9,7 @@ Group=www-data
 WorkingDirectory=/var/www/youtube_chat_dashboard/current
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/var/www/youtube_chat_dashboard/current/.venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 dashboard.wsgi:application
-Restart=on-failure
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
