@@ -95,6 +95,7 @@ pipeline {
                     python manage.py migrate --noinput || true
                     python manage.py collectstatic --noinput || true
 
+                    sudo -n chown -R www-data:www-data "$RELEASE_DIR"
                     ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
                     sudo -n systemctl daemon-reload || true
