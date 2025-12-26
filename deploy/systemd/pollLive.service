@@ -1,0 +1,15 @@
+[Unit]
+Description=YouTube Poll Live Streams
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/youtube_chat_dashboard/current
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/var/www/youtube_chat_dashboard/current/.venv/bin/python manage.py poll_live_streams --loop
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

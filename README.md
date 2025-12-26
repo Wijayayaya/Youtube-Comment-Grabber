@@ -39,6 +39,54 @@ Dashboard berbasis Django untuk mengambil komentar live YouTube via API dan meng
    python manage.py createsuperuser
    ```
 
+## Virtual environment (venv)
+
+Disarankan membuat virtual environment lokal agar dependensi terisolasi.
+
+- Buat venv di root proyek (folder yang berisi `manage.py`):
+
+```powershell
+python -m venv .venv
+```
+
+- Aktifkan venv (PowerShell):
+
+```powershell
+# Jika eksekusi skrip diblokir jalankan sekali saja:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+
+# Lalu aktifkan venv:
+.\.venv\Scripts\Activate.ps1
+```
+
+- Aktifkan venv (cmd.exe):
+
+```cmd
+.\.venv\Scripts\activate.bat
+```
+
+- Aktifkan venv (Git Bash / WSL):
+
+```bash
+source .venv/Scripts/activate
+```
+
+- Setelah aktif, perbarui `pip` dan pasang dependensi dari `requirements.txt`:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+- Verifikasi dengan migrasi dan jalankan server:
+
+```powershell
+python manage.py migrate
+python manage.py runserver
+```
+
+Catatan: jika OAuth atau token perlu login ulang, hapus `youtube_token.json` untuk memaksa proses OAuth.
+
 ## Mengambil Live Chat
 
 Gunakan salah satu dari dua perintah berikut:
@@ -99,3 +147,34 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/messages/12/mark-sent/" -Metho
 - Pastikan video yang dipantau memang live dan chat tidak dimatikan; jika tidak, API akan mengembalikan error `commentsDisabled`.
 - Jika izin OAuth berubah, hapus `youtube_token.json` untuk memaksa login ulang.
 - Gunakan scheduler (Task Scheduler, cron, dll.) untuk menjalankan `fetch_live_chat` secara berkala selama live berlangsung.
+
+## Manage live chat (Display manager)
+
+Fitur baru untuk mengatur komentar yang akan ditampilkan secara publik:
+
+- Akses dari Django Admin: buka **Comments → Manage live chat** atau langsung di `/admin/comments/manage/`.
+- Juga tersedia halaman publik untuk admin di `/manage/` (sama fungsi, tanpa sidebar admin).
+
+Fungsi yang tersedia:
+
+- Drag & drop untuk mengurutkan komentar yang telah ditandai `display_selected`.
+- Klik **Save Order** untuk menyimpan urutan global (disimpan di field `display_order`).
+- Atur waktu rotasi (detik) untuk semua live stream sekaligus melalui input `Rotation seconds` lalu klik **Save**. Nilai ini ditulis ke `LiveStream.display_rotation_seconds`.
+
+API internal yang berguna saat integrasi atau debugging:
+
+- `GET /api/manage/messages/` — ambil semua pesan yang dipilih untuk display (mengembalikan `display_order`).
+- `POST /api/manage/reorder/` — simpan urutan baru. Body JSON: `{"order": [id1, id2, ...]}`.
+- `POST /api/manage/update_rotation/` — ubah durasi rotasi untuk semua stream. Form field: `seconds`.
+
+Catatan migrasi:
+
+- Modifikasi model menambahkan field `display_order` dan proxy model `ManageableLiveChatMessage`. Jika setelah update kode Anda menemui error migrasi (mis. kolom sudah ada), jalankan:
+
+```powershell
+python manage.py makemigrations
+python manage.py migrate
+# jika kolom sudah ada sebelumnya: python manage.py migrate comments <nama_migration> --fake
+```
+
+Jika butuh bantuan menyesuaikan URL atau menonaktifkan route publik `/manage/`, beri tahu saya dan saya akan bantu ubah konfigurasi URL.
