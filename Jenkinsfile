@@ -99,7 +99,9 @@ pipeline {
                     ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
                     sudo -n systemctl daemon-reload || true
-                    sudo -n systemctl restart "$SERVICE_WEB" "$SERVICE_POLL" || true
+                    sudo -n systemctl restart "$SERVICE_WEB" "$SERVICE_POLL"
+                    sudo -n systemctl is-active --quiet "$SERVICE_WEB"
+                    sudo -n systemctl is-active --quiet "$SERVICE_POLL"
 
                     cd "$RELEASES_DIR"
                     OLD_RELEASES=$(ls -1dt "${APP_NAME}"-* 2>/dev/null | tail -n +6 || true)
