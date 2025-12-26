@@ -92,8 +92,8 @@ pipeline {
 
                     # Run migrations and collectstatic if applicable
                     cd "$RELEASE_DIR"
-                    python manage.py migrate --noinput || true
-                    python manage.py collectstatic --noinput || true
+                    python manage.py migrate --noinput
+                    python manage.py collectstatic --noinput
 
                     sudo -n chown -R www-data:www-data "$RELEASE_DIR"
                     ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
