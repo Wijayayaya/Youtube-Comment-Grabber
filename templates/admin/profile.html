@@ -1,0 +1,221 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}My Profile - YouTube Comment Grabber{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">My Profile</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item" aria-current="page">Profile</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<!-- Profile -->
+<div class="row">
+  <div class="col-md-4">
+    <!-- Profile Card -->
+    <div class="card">
+      <div class="card-body text-center">
+        <div class="mb-3">
+          <div style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+            <i data-feather="user" style="width: 60px; height: 60px; color: white;"></i>
+          </div>
+        </div>
+        <h4 class="mb-1">{{ user.get_full_name|default:user.username }}</h4>
+        <p class="text-muted mb-2">@{{ user.username }}</p>
+        
+        {% if user.is_superuser %}
+          <span class="badge bg-danger mb-2">Superuser</span>
+        {% elif user.is_staff %}
+          <span class="badge bg-warning mb-2">Staff</span>
+        {% else %}
+          <span class="badge bg-info mb-2">User</span>
+        {% endif %}
+        
+        {% if user.is_active %}
+          <span class="badge bg-success mb-2">Active</span>
+        {% else %}
+          <span class="badge bg-secondary mb-2">Inactive</span>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Account Info -->
+    <div class="card">
+      <div class="card-header">
+        <h5>Account Information</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="text-muted mb-1">Email</label>
+          <p class="mb-0">{{ user.email|default:"Not set" }}</p>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted mb-1">Username</label>
+          <p class="mb-0">{{ user.username }}</p>
+        </div>
+        <div class="mb-3">
+          <label class="text-muted mb-1">Date Joined</label>
+          <p class="mb-0">{{ user.date_joined|date:"d F Y" }}</p>
+        </div>
+        <div class="mb-0">
+          <label class="text-muted mb-1">Last Login</label>
+          <p class="mb-0">{{ user.last_login|date:"d F Y H:i"|default:"Never" }}</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Groups -->
+    {% if user.groups.exists %}
+    <div class="card">
+      <div class="card-header">
+        <h5>Groups</h5>
+      </div>
+      <div class="card-body">
+        {% for group in user.groups.all %}
+          <span class="badge bg-primary me-1 mb-1">{{ group.name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header">
+        <h5>Quick Actions</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-grid gap-2">
+          <a href="{% url 'comments:admin-change-password' %}" class="btn btn-primary">
+            <i data-feather="key"></i> Change Password
+          </a>
+          <a href="/admin/logout/" class="btn btn-danger">
+            <i data-feather="log-out"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-8">
+    <!-- Edit Profile -->
+    <div class="card">
+      <div class="card-header">
+        <h5>Edit Profile</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="first_name" class="form-label">First Name</label>
+              <input type="text" class="form-control" id="first_name" name="first_name" 
+                     value="{{ user.first_name }}" placeholder="Enter first name">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="last_name" class="form-label">Last Name</label>
+              <input type="text" class="form-control" id="last_name" name="last_name" 
+                     value="{{ user.last_name }}" placeholder="Enter last name">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="email" class="form-label">Email Address</label>
+            <input type="email" class="form-control" id="email" name="email" 
+                   value="{{ user.email }}" placeholder="Enter email address">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" value="{{ user.username }}" readonly disabled>
+            <small class="form-text text-muted">Username cannot be changed</small>
+          </div>
+          
+          <button type="submit" class="btn btn-primary">
+            <i data-feather="save"></i> Update Profile
+          </button>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Permissions (Read-only) -->
+    <div class="card">
+      <div class="card-header">
+        <h5>Permissions</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <div class="d-flex align-items-center">
+              <div class="flex-shrink-0">
+                {% if user.is_active %}
+                  <i data-feather="check-circle" class="text-success" style="width: 24px; height: 24px;"></i>
+                {% else %}
+                  <i data-feather="x-circle" class="text-danger" style="width: 24px; height: 24px;"></i>
+                {% endif %}
+              </div>
+              <div class="flex-grow-1 ms-3">
+                <p class="mb-0">Active Status</p>
+                <small class="text-muted">Account is {{ user.is_active|yesno:"active,inactive" }}</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4 mb-3">
+            <div class="d-flex align-items-center">
+              <div class="flex-shrink-0">
+                {% if user.is_staff %}
+                  <i data-feather="check-circle" class="text-success" style="width: 24px; height: 24px;"></i>
+                {% else %}
+                  <i data-feather="x-circle" class="text-muted" style="width: 24px; height: 24px;"></i>
+                {% endif %}
+              </div>
+              <div class="flex-grow-1 ms-3">
+                <p class="mb-0">Staff Access</p>
+                <small class="text-muted">Can access admin site</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4 mb-3">
+            <div class="d-flex align-items-center">
+              <div class="flex-shrink-0">
+                {% if user.is_superuser %}
+                  <i data-feather="check-circle" class="text-success" style="width: 24px; height: 24px;"></i>
+                {% else %}
+                  <i data-feather="x-circle" class="text-muted" style="width: 24px; height: 24px;"></i>
+                {% endif %}
+              </div>
+              <div class="flex-grow-1 ms-3">
+                <p class="mb-0">Superuser</p>
+                <small class="text-muted">All permissions</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="alert alert-info mt-3" role="alert">
+          <i data-feather="info"></i>
+          Contact administrator to change permissions or account status.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

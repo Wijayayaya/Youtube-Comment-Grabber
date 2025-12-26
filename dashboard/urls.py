@@ -16,10 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from comments import views as comments_views
 
 urlpatterns = [
-    path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
-    path('admin/', admin.site.urls),
+    # Include all comments URLs first (includes custom admin routes)
     path('', include('comments.urls')),
+    
+    # Django admin DISABLED - All features moved to new custom admin dashboard
+    # path('admin/django/', admin.site.urls, name='django-admin'),
+    
+    # Custom manage display view
+    # path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
 ]

@@ -1,0 +1,366 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <title>{% block title %}YouTube Comment Dashboard{% endblock %}</title>
+  <!-- [Meta] -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  
+  <!-- [Favicon] icon -->
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+  
+  <!-- [Font] Family -->
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- [Tabler Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/tabler-icons.min.css' %}">
+  
+  <!-- [Feather Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/feather.css' %}">
+  
+  <!-- [Font Awesome Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/fontawesome.css' %}">
+  
+  <!-- [Material Icons] -->
+  <link rel="stylesheet" href="{% static 'assets/fonts/material.css' %}">
+  
+  <!-- [Template CSS Files] -->
+  <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" id="main-style-link">
+  <link rel="stylesheet" href="{% static 'assets/css/style-preset.css' %}">
+  
+  <style>
+    /* Mobile specific styles */
+    @media (max-width: 1024px) {
+      .pc-header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 1030 !important;
+        background: #1e293b !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+      }
+      
+      .pc-sidebar-collapse {
+        display: block !important;
+      }
+      
+      #sidebar-hide {
+        width: 44px !important;
+        height: 44px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #3b82f6 !important;
+        border-radius: 8px !important;
+        margin: 8px !important;
+      }
+      
+      #sidebar-hide svg {
+        stroke: #ffffff !important;
+        display: block !important;
+      }
+      
+      #sidebar-hide i[data-feather="menu"] {
+        display: none !important;
+      }
+      
+      .pc-container {
+        margin-top: 70px !important;
+      }
+      
+      /* Sidebar mobile overlay */
+      .pc-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: -280px !important;
+        height: 100vh !important;
+        width: 280px !important;
+        z-index: 1029 !important;
+        transition: left 0.3s ease !important;
+        background: #1e293b !important;
+      }
+      
+      .pc-sidebar.mob-sidebar-active {
+        left: 0 !important;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.3) !important;
+      }
+      
+      /* Overlay when sidebar open */
+      body.mob-sidebar-active::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1028;
+      }
+    }
+    
+    /* Desktop - hide mobile SVG and style hamburger */
+    @media (min-width: 1025px) {
+      #sidebar-hide > svg:first-child {
+        display: none !important;
+      }
+      
+      #sidebar-hide {
+        width: 40px !important;
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #3b82f6 !important;
+        border-radius: 8px !important;
+      }
+      
+      #sidebar-hide svg {
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+      }
+    }
+  </style>
+  
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body data-pc-preset="preset-1" data-pc-sidebar-theme="dark" data-pc-sidebar-caption="true" data-pc-direction="ltr" data-pc-theme="dark">
+  
+  <!-- [ Pre-loader ] start -->
+  <div class="loader-bg">
+    <div class="loader-track">
+      <div class="loader-fill"></div>
+    </div>
+  </div>
+  <!-- [ Pre-loader ] End -->
+
+  <!-- [ Sidebar Menu ] start -->
+  <nav class="pc-sidebar">
+    <div class="navbar-wrapper">
+      <div class="m-header">
+        <a href="{% url 'comments:admin-dashboard' %}" class="b-brand text-primary">
+          <i data-feather="youtube" style="width: 32px; height: 32px;"></i>
+          <span class="badge bg-danger rounded-pill ms-2 theme-version">YT</span>
+        </a>
+      </div>
+      <div class="navbar-content">
+        <ul class="pc-navbar">
+          
+          <li class="pc-item pc-caption">
+            <label>Navigation</label>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-dashboard' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="home"></i></span>
+              <span class="pc-mtext">Dashboard</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-livestream-list' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="youtube"></i></span>
+              <span class="pc-mtext">Live Streams</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-livechatmessage-list' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="message-circle"></i></span>
+              <span class="pc-mtext">Chat Messages</span>
+            </a>
+          </li>
+          
+          <li class="pc-item pc-caption">
+            <label>Management</label>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:manage-display' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="monitor"></i></span>
+              <span class="pc-mtext">Manage Display</span>
+            </a>
+          </li>
+          
+          <li class="pc-item">
+            <a href="{% url 'comments:display' %}" class="pc-link" target="_blank">
+              <span class="pc-micon"><i data-feather="tv"></i></span>
+              <span class="pc-mtext">OBS Display</span>
+            </a>
+          </li>
+          
+          {% if request.user.is_superuser %}
+          <li class="pc-item pc-caption">
+            <label>System</label>
+          </li>
+          
+          <li class="pc-item pc-hasmenu">
+            <a href="#!" class="pc-link">
+              <span class="pc-micon"><i data-feather="users"></i></span>
+              <span class="pc-mtext">User Management</span>
+              <span class="pc-arrow"><i data-feather="chevron-right"></i></span>
+            </a>
+            <ul class="pc-submenu">
+              <li class="pc-item">
+                <a class="pc-link" href="{% url 'comments:admin-user-list' %}">Users</a>
+              </li>
+              <li class="pc-item">
+                <a class="pc-link" href="{% url 'comments:admin-group-list' %}">Groups</a>
+              </li>
+            </ul>
+          </li>
+          {% endif %}
+          
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <!-- [ Sidebar Menu ] end -->
+
+  <!-- [ Header Topbar ] start -->
+  <header class="pc-header">
+    <div class="header-wrapper">
+      <div class="me-auto pc-mob-drp">
+        <ul class="list-unstyled">
+          <li class="pc-h-item pc-sidebar-collapse">
+            <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
+              <!-- SVG for mobile only -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+              <!-- Feather icon for desktop -->
+              <i data-feather="menu"></i>
+            </a>
+          </li>
+          <li class="pc-h-item d-none d-md-inline-flex">
+            <h5 class="mb-0 ms-2">Dashboard</h5>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="ms-auto">
+        <ul class="list-unstyled">
+          <li class="dropdown pc-h-item">
+            <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
+              <i data-feather="user"></i>
+            </a>
+            <div class="dropdown-menu dropdown-menu-end pc-h-dropdown">
+              <div class="dropdown-header d-flex align-items-center justify-content-between">
+                <h5 class="m-0">Profile</h5>
+              </div>
+              <div class="dropdown-divider"></div>
+              <a href="{% url 'comments:admin-profile' %}" class="dropdown-item">
+                <i data-feather="user"></i>
+                <span>My Profile</span>
+              </a>
+              <a href="{% url 'comments:admin-change-password' %}" class="dropdown-item">
+                <i data-feather="key"></i>
+                <span>Change Password</span>
+              </a>
+              <div class="dropdown-divider"></div>
+              <a href="/admin/logout/" class="dropdown-item">
+                <i data-feather="log-out"></i>
+                <span>Logout</span>
+              </a>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </header>
+  <!-- [ Header Topbar ] end -->
+
+  <!-- [ Main Content ] start -->
+  <div class="pc-container">
+    <div class="pc-content">
+      
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      
+      {% block content %}{% endblock %}
+      
+    </div>
+  </div>
+  <!-- [ Main Content ] end -->
+
+  <!-- Required Js -->
+  <script src="{% static 'assets/js/plugins/popper.min.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/simplebar.min.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/bootstrap.min.js' %}"></script>
+  <script src="{% static 'assets/js/fonts/custom-font.js' %}"></script>
+  <script src="{% static 'assets/js/pcoded.js' %}"></script>
+  <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
+  
+  <script>
+    // Theme setup
+    if (typeof layout_change === 'function') {
+      layout_change('dark');
+    }
+    if (typeof layout_sidebar_change === 'function') {
+      layout_sidebar_change('dark');
+    }
+    
+    // Manual sidebar toggle for mobile
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebarToggle = document.getElementById('sidebar-hide');
+      const sidebar = document.querySelector('.pc-sidebar');
+      const body = document.body;
+      
+      if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Toggle sidebar visibility
+          if (sidebar.classList.contains('mob-sidebar-active')) {
+            sidebar.classList.remove('mob-sidebar-active');
+            body.classList.remove('mob-sidebar-active');
+          } else {
+            sidebar.classList.add('mob-sidebar-active');
+            body.classList.add('mob-sidebar-active');
+          }
+        });
+        
+        // Close sidebar when clicking menu items on mobile
+        const menuLinks = sidebar.querySelectorAll('.pc-link');
+        menuLinks.forEach(link => {
+          link.addEventListener('click', function() {
+            if (window.innerWidth <= 1024) {
+              sidebar.classList.remove('mob-sidebar-active');
+              body.classList.remove('mob-sidebar-active');
+            }
+          });
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+          if (window.innerWidth <= 1024) {
+            if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+              sidebar.classList.remove('mob-sidebar-active');
+              body.classList.remove('mob-sidebar-active');
+            }
+          }
+        });
+      }
+      
+      // Initialize feather icons
+      if (typeof feather !== 'undefined') {
+        feather.replace();
+      }
+    });
+  </script>
+  
+  {% block extra_js %}{% endblock %}
+  
+</body>
+</html>

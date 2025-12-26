@@ -17,72 +17,77 @@
         font-family: Arial, Helvetica, sans-serif;
         display: flex;
         align-items: center;
-        justify-content: center;
-        padding: 32px 24px;
+        justify-content: flex-start;
+        padding: 16px 20px 16px 12px;
       }
+      
+      /* Container untuk avatar dan card */
+      #root {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-start;
+        gap: 8px;
+        width: 100%;
+      }
+      
+      /* Avatar kotak */
+      .avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 0;
+        object-fit: cover;
+        background: #eee;
+        border: 3px solid #e1251b;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      
+      /* Card untuk username dan message */
       .card {
         display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px 10px; /* samakan jarak kiri dengan atas/bawah */
-        border-radius: 14px;
-        width: 90vw; /* ubah lebar di sini jika mau lebih/kurang panjang */
-        max-width: 1200px; /* batas lebar maksimum */
-        min-width: 520px;
-        height: 156px; /* pas dengan avatar + padding, tetap ramping untuk 2 baris */
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 248, 248, 0.96));
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26);
-        border: 2px solid #e1251b;
+        flex-direction: column;
+        padding: 8px 12px;
+        width: auto;
+        flex: 1;
+        max-width: none;
+        min-width: 400px;
+        height: 100px;
+        margin: 0;
+        background: #ffffff;
+        /* box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26); */
+        /* border: 2px solid #111; */
         position: relative;
         overflow: hidden;
         box-sizing: border-box;
       }
-      .card::before {
-          display: none; /* bar oranye kiri dihilangkan */
-      }
-      .avatar {
-        width: 132px;
-        height: 132px;
-        border-radius: 20px;
-        object-fit: cover;
-        background: #eee;
-        border: 6px solid #e1251b;
-        box-sizing: border-box;
-        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
-        align-self: center; /* center avatar vertically while text stays top */
-      }
+      
       .meta {
         display: flex;
         flex-direction: column;
-        flex: 1;
-        max-width: 100%;
-        height: auto;
-        justify-content: flex-start;
-        align-self: stretch;
-        padding-left: 12px;
+        gap: 6px;
       }
+      
       .author {
         font-weight: 700;
-        font-size: 2.05rem; /* perbesar agar ruang vertikal lebih terisi */
+        font-size: 1.8rem;
         color: #d81e0e;
-        white-space: nowrap; /* keep username on one line */
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      
       .message {
-        font-size: 1.4rem;
-        line-height: 1.5;
-        margin-top: 6px;
-        max-height: 68px; /* batasi agar hanya 2 baris terlihat */
+        font-size: 1.2rem;
+        line-height: 1.3;
+        max-height: 54px;
         overflow: hidden;
         overflow-wrap: anywhere;
         word-break: break-word;
         display: -webkit-box;
-        -webkit-line-clamp: 2; /* potong ke 2 baris saja */
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
       }
 
-      /* hide scrollbars inside the message for clean overlay */
       .message::-webkit-scrollbar {
         display: none;
       }
@@ -93,31 +98,35 @@
 
       @media (max-width: 640px) {
         body {
-          padding: 16px;
+          padding: 12px;
         }
-        .card {
+        #root {
           flex-direction: column;
-          align-items: flex-start;
-          width: 95vw;
-          min-width: auto;
-          height: auto;
-        }
-        .meta {
-          max-width: 100%;
+          gap: 16px;
+          width: auto;
         }
         .avatar {
-          width: 110px;
-          height: 110px;
+          width: 96px;
+          height: 96px;
+        }
+        .card {
+          width: 95vw;
+          flex: initial;
+          height: 100px;
+          margin: 8px 0;
+          min-width: auto;
         }
       }
     </style>
   </head>
   <body>
-    <div id="root" class="card">
+    <div id="root">
       <img id="avatar" class="avatar" src="" alt="avatar" />
-      <div class="meta">
-        <div id="author" class="author"></div>
-        <div id="message" class="message"></div>
+      <div class="card">
+        <div class="meta">
+          <div id="author" class="author"></div>
+          <div id="message" class="message"></div>
+        </div>
       </div>
     </div>
 
@@ -155,7 +164,6 @@
           author.textContent = m.author_name || "";
           messageEl.textContent = m.text || "";
           avatar.src = m.author_profile_image_url || "";
-          // use per-stream rotation_seconds if provided; fallback 6s
           const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 6;
           const delay = rotation * 1000;
           idx = (idx + 1) % messages.length;
