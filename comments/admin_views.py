@@ -74,6 +74,18 @@ def livestream_list(request):
 	
 	streams = streams.order_by('-created_at')
 	
+	# Return JSON if requested via AJAX
+	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+		streams_data = [
+			{
+				'id': s.id,
+				'video_id': s.video_id,
+				'title': s.title or s.video_id,
+			}
+			for s in streams
+		]
+		return JsonResponse({'streams': streams_data})
+	
 	# Pagination
 	paginator = Paginator(streams, 20)
 	page_number = request.GET.get('page', 1)

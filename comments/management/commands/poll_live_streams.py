@@ -32,7 +32,7 @@ class Command(BaseCommand):
 		parser.add_argument(
 			"--interval",
 			type=int,
-			default=300,
+			default=30,
 			help="Jeda antar siklus (detik) saat --loop aktif",
 		)
 		parser.add_argument(
@@ -43,14 +43,6 @@ class Command(BaseCommand):
 
 	def handle(self, *args, **options):
 		video_ids = options["video_ids"] or []
-		streams_qs = LiveStream.objects.filter(is_active=True)
-		if video_ids:
-			streams_qs = streams_qs.filter(video_id__in=video_ids)
-		streams = list(streams_qs)
-		if not streams:
-			self.stdout.write(self.style.WARNING("Tidak ada LiveStream aktif yang bisa diproses."))
-			return
-
 		youtube = build_youtube_service()
 		metadata_cache: dict[int, str] = {}
 
@@ -58,14 +50,28 @@ class Command(BaseCommand):
 		interval = max(1, options["interval"])
 		refresh_metadata = options["refresh_metadata"]
 
-		self.stdout.write(
-			self.style.NOTICE(
-				f"Memproses {len(streams)} stream: {', '.join(stream.video_id for stream in streams)}"
-			)
-		)
-
 		try:
 			while True:
+				# Re-query streams setiap cycle agar bisa detect stream baru
+				streams_qs = LiveStream.objects.filter(is_active=True)
+				if video_ids:
+					streams_qs = streams_qs.filter(video_id__in=video_ids)
+				streams = list(streams_qs)
+				
+				if not streams:
+					self.stdout.write(self.style.WARNING("Tidak ada LiveStream aktif yang bisa diproses."))
+					if not loop:
+						return
+					self.stdout.write(self.style.NOTICE(f"Menunggu {interval}s sebelum cek lagi..."))
+					time.sleep(interval)
+					continue
+
+				self.stdout.write(
+					self.style.NOTICE(
+						f"Memproses {len(streams)} stream: {', '.join(stream.video_id for stream in streams)}"
+					)
+				)
+
 				cycle_saved = 0
 				for stream in streams:
 					live_chat_id = metadata_cache.get(stream.id)
