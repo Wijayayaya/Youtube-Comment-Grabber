@@ -165,7 +165,6 @@ def livestream_delete(request, pk):
 def livechatmessage_list(request):
 	"""List all live chat messages."""
 	search_query = request.GET.get('search', '')
-	status_filter = request.GET.get('status', '')
 	stream_filter = request.GET.get('stream', '')
 	display_filter = request.GET.get('display', '')
 	
@@ -177,9 +176,6 @@ def livechatmessage_list(request):
 			Q(author_name__icontains=search_query) |
 			Q(message_text__icontains=search_query)
 		)
-	
-	if status_filter:
-		messages_qs = messages_qs.filter(status=status_filter)
 	
 	if stream_filter:
 		messages_qs = messages_qs.filter(live_stream__video_id=stream_filter)
@@ -200,11 +196,9 @@ def livechatmessage_list(request):
 	context = {
 		'page_obj': page_obj,
 		'search_query': search_query,
-		'status_filter': status_filter,
 		'stream_filter': stream_filter,
 		'display_filter': display_filter,
 		'streams': streams,
-		'status_choices': LiveChatMessage.Status.choices,
 	}
 	
 	return render(request, 'admin/livechatmessage_list.html', context)
@@ -216,12 +210,14 @@ def livechatmessage_detail(request, pk):
 	message = get_object_or_404(LiveChatMessage.objects.select_related('live_stream'), pk=pk)
 	
 	if request.method == 'POST':
-		message.status = request.POST.get('status', message.status)
 		message.note = request.POST.get('note', '')
+		previous_display_selected = message.display_selected
 		message.display_selected = request.POST.get('display_selected') == 'on'
 		
-		if message.status == LiveChatMessage.Status.SENT and not message.sent_at:
-			message.sent_at = timezone.now()
+		if message.display_selected and not previous_display_selected:
+			message.status = LiveChatMessage.Status.SENT
+			if not message.sent_at:
+				message.sent_at = timezone.now()
 		
 		message.save()
 		messages.success(request, f'Message from "{message.author_name}" updated successfully.')
@@ -229,7 +225,6 @@ def livechatmessage_detail(request, pk):
 	
 	context = {
 		'message': message,
-		'status_choices': LiveChatMessage.Status.choices,
 	}
 	return render(request, 'admin/livechatmessage_detail.html', context)
 

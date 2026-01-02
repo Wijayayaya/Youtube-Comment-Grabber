@@ -31,20 +31,11 @@
       <div class="card-body">
         <form method="get" action="{% url 'comments:admin-livechatmessage-list' %}">
           <div class="row align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Search</label>
               <input type="text" name="search" class="form-control" placeholder="Author or message..." value="{{ search_query }}">
             </div>
-            <div class="col-md-2">
-              <label class="form-label">Status</label>
-              <select name="status" class="form-select">
-                <option value="">All Status</option>
-                {% for value, label in status_choices %}
-                  <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Stream</label>
               <select name="stream" class="form-select">
                 <option value="">All Streams</option>
@@ -102,9 +93,6 @@
                 <button type="button" class="btn btn-warning" onclick="unmarkForDisplay()">
                   <i class="feather icon-eye-off"></i> Remove from Display
                 </button>
-                <button type="button" class="btn btn-info" onclick="markAsSent()">
-                  <i class="feather icon-send"></i> Mark as Sent
-                </button>
               </div>
             </div>
           </div>
@@ -145,7 +133,6 @@
                   <th>Author</th>
                   <th>Message</th>
                   <th>Stream</th>
-                  <th>Status</th>
                   <th>Display</th>
                   <th>Published</th>
                   <th>Actions</th>
@@ -171,15 +158,6 @@
                   <td>{{ message.message_text|truncatewords:15 }}</td>
                   <td><small>{{ message.live_stream.title|default:message.live_stream.video_id }}</small></td>
                   <td>
-                    <span class="badge 
-                      {% if message.status == 'new' %}bg-info
-                      {% elif message.status == 'reviewed' %}bg-warning
-                      {% elif message.status == 'sent' %}bg-success
-                      {% else %}bg-danger{% endif %}">
-                      {{ message.get_status_display }}
-                    </span>
-                  </td>
-                  <td>
                     {% if message.display_selected %}
                       <button type="button" class="btn btn-sm btn-success" 
                               onclick="toggleDisplay({{ message.pk }}, false)" 
@@ -203,7 +181,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="9" class="text-center text-muted">No messages found</td>
+                  <td colspan="8" class="text-center text-muted">No messages found</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -217,10 +195,10 @@
           <ul class="pagination justify-content-center mt-3">
             {% if page_obj.has_previous %}
               <li class="page-item">
-                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
+                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
               </li>
               <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
               </li>
             {% endif %}
             
@@ -230,10 +208,10 @@
             
             {% if page_obj.has_next %}
               <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
               </li>
               <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
               </li>
             {% endif %}
           </ul>
@@ -512,20 +490,5 @@ function unmarkForDisplay() {
   }
 }
 
-function markAsSent() {
-  const form = document.getElementById('bulk-form');
-  const actionSelect = form.querySelector('select[name="action"]');
-  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
-  
-  if (checkedBoxes.length === 0) {
-    alert('Please select at least one message.');
-    return;
-  }
-  
-  if (confirm(`Mark ${checkedBoxes.length} message(s) as sent?`)) {
-    actionSelect.value = 'mark_sent';
-    form.submit();
-  }
-}
 </script>
 {% endblock %}

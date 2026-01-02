@@ -1,8 +1,6 @@
 {% extends "admin/base_admin.html" %}
 {% load static %}
-
 {% block title %}Message Detail - YouTube Comment Grabber{% endblock %}
-
 {% block content %}
 <!-- [ breadcrumb ] start -->
 <div class="page-header">
@@ -35,40 +33,35 @@
       <div class="card-body">
         <form method="post">
           {% csrf_token %}
-          
+
           <!-- Author Info -->
           <div class="row mb-4">
             <div class="col-md-2">
               {% if message.author_profile_image_url %}
-                <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}" 
-                     class="img-fluid rounded-circle" style="width: 80px; height: 80px;">
+              <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}" class="img-fluid rounded-circle" style="width: 80px; height: 80px" />
               {% else %}
-                <div style="width: 80px; height: 80px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;">
-                  <i class="feather icon-user text-white" style="font-size: 40px;"></i>
-                </div>
+              <div style="width: 80px; height: 80px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center">
+                <i class="feather icon-user text-white" style="font-size: 40px"></i>
+              </div>
               {% endif %}
             </div>
             <div class="col-md-10">
               <h4>{{ message.author_name }}</h4>
-              <p class="text-muted mb-1">
-                <i class="feather icon-hash"></i> {{ message.message_id }}
-              </p>
+              <p class="text-muted mb-1"><i class="feather icon-hash"></i> {{ message.message_id }}</p>
               {% if message.author_channel_id %}
-              <p class="text-muted mb-0">
-                <i class="feather icon-youtube"></i> Channel ID: <code>{{ message.author_channel_id }}</code>
-              </p>
+              <p class="text-muted mb-0"><i class="feather icon-youtube"></i> Channel ID: <code>{{ message.author_channel_id }}</code></p>
               {% endif %}
             </div>
           </div>
-          
-          <hr>
-          
+
+          <hr />
+
           <!-- Message Text -->
           <div class="mb-4">
             <label class="form-label fw-bold">Message</label>
-            <div class="p-3 border rounded bg-light" style="white-space: pre-wrap;">{{ message.message_text }}</div>
+            <div class="p-3 border rounded bg-light" style="white-space: pre-wrap">{{ message.message_text }}</div>
           </div>
-          
+
           <!-- Stream Info -->
           <div class="mb-3">
             <label class="form-label fw-bold">Live Stream</label>
@@ -77,45 +70,27 @@
             </p>
             <p class="text-muted mb-0">
               <i class="feather icon-youtube"></i> Video ID: <code>{{ message.live_stream.video_id }}</code>
-              <a href="https://youtube.com/watch?v={{ message.live_stream.video_id }}" target="_blank" class="ms-2">
-                <i class="feather icon-external-link"></i> Open on YouTube
-              </a>
+              <a href="https://youtube.com/watch?v={{ message.live_stream.video_id }}" target="_blank" class="ms-2"> <i class="feather icon-external-link"></i> Open on YouTube </a>
             </p>
           </div>
-          
-          <hr>
-          
-          <!-- Status -->
-          <div class="mb-3">
-            <label for="status" class="form-label fw-bold">Status</label>
-            <select name="status" id="status" class="form-select">
-              {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if message.status == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          
+
+          <hr />
+
           <!-- Display Selected -->
           <div class="mb-3">
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="display_selected" name="display_selected" 
-                     {% if message.display_selected %}checked{% endif %}>
-              <label class="form-check-label fw-bold" for="display_selected">
-                Mark for Display (OBS)
-              </label>
+              <input class="form-check-input" type="checkbox" id="display_selected" name="display_selected" {% if message.display_selected %}checked{% endif %} />
+              <label class="form-check-label fw-bold" for="display_selected"> Mark for Display (OBS) </label>
             </div>
-            <small class="form-text text-muted">
-              If checked, this message will appear in the OBS display rotation
-            </small>
+            <small class="form-text text-muted"> If checked, this message will appear in the OBS display rotation </small>
           </div>
-          
+
           <!-- Note -->
           <div class="mb-3">
             <label for="note" class="form-label fw-bold">Internal Note</label>
-            <textarea name="note" id="note" class="form-control" rows="3" 
-                      placeholder="Add internal notes about this message...">{{ message.note }}</textarea>
+            <textarea name="note" id="note" class="form-control" rows="3" placeholder="Add internal notes about this message...">{{ message.note }}</textarea>
           </div>
-          
+
           <!-- Timestamps -->
           <div class="row mb-3">
             <div class="col-md-4">
@@ -131,25 +106,20 @@
               <p><i class="feather icon-clock"></i> {{ message.updated_at|date:"d M Y H:i:s" }}</p>
             </div>
           </div>
-          
-          <hr>
-          
+
+          <hr />
+
           <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-primary">
-              <i class="feather icon-save"></i> Save Changes
-            </button>
-            <a href="{% url 'comments:admin-livechatmessage-list' %}" class="btn btn-secondary">
-              <i class="feather icon-arrow-left"></i> Back to List
-            </a>
+            <button type="submit" class="btn btn-primary"><i class="feather icon-save"></i> Save Changes</button>
+            <a href="{% url 'comments:admin-livechatmessage-list' %}" class="btn btn-secondary"> <i class="feather icon-arrow-left"></i> Back to List </a>
           </div>
         </form>
       </div>
     </div>
   </div>
-  
+
   <!-- Side Panel -->
   <div class="col-md-4">
-    
     <!-- Quick Actions -->
     <div class="card">
       <div class="card-header">
@@ -159,32 +129,16 @@
         <div class="d-grid gap-2">
           <form method="post">
             {% csrf_token %}
-            <input type="hidden" name="status" value="sent">
-            <button type="submit" class="btn btn-success w-100">
-              <i class="feather icon-check-circle"></i> Mark as Sent
-            </button>
-          </form>
-          
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="status" value="ignored">
-            <button type="submit" class="btn btn-warning w-100">
-              <i class="feather icon-x-circle"></i> Mark as Ignored
-            </button>
-          </form>
-          
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="display_selected" value="{% if message.display_selected %}{% else %}on{% endif %}">
+            <input type="hidden" name="display_selected" value="{% if message.display_selected %}{% else %}on{% endif %}" />
             <button type="submit" class="btn btn-info w-100">
-              <i class="feather icon-monitor"></i> 
+              <i class="feather icon-monitor"></i>
               {% if message.display_selected %}Remove from{% else %}Add to{% endif %} Display
             </button>
           </form>
         </div>
       </div>
     </div>
-    
+
     <!-- Raw Data -->
     {% if message.raw_payload %}
     <div class="card">
@@ -192,14 +146,17 @@
         <h5>Raw Payload</h5>
       </div>
       <div class="card-body">
-        <details>
-          <summary class="btn btn-sm btn-outline-secondary mb-2">Show JSON</summary>
-          <pre class="bg-dark text-light p-3 rounded mt-2" style="font-size: 0.75rem; max-height: 400px; overflow-y: auto;"><code>{{ message.raw_payload }}</code></pre>
+        <details class="p-0">
+          <summary class="btn btn-sm btn-outline-secondary mb-2 w-100 text-start">Show JSON</summary>
+          <div class="border rounded" style="background: #f5f6fa;">
+            <pre class="text-dark m-0 p-3" style="font-size: 0.75rem; max-height: 400px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;">
+              <code>{{ message.raw_payload }}</code>
+            </pre>
+          </div>
         </details>
       </div>
     </div>
     {% endif %}
-    
   </div>
 </div>
 
