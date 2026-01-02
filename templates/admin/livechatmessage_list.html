@@ -249,6 +249,145 @@
 
 {% block extra_js %}
 <script>
+// Auto-update polling
+let lastStreamData = '';
+let lastMessageCount = {{ page_obj.paginator.count }};
+const AUTO_UPDATE_INTERVAL = 5000; // 5 detik
+
+function checkForUpdates() {
+  // Check stream list updates
+  fetch('/admin/livestreams/', {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(response => response.json())
+  .then(data => {
+    const streams = data.streams || [];
+    const newStreamData = streams.map(s => s.video_id).sort().join(',');
+    
+    // If stream list changed, update dropdown
+    if (lastStreamData && newStreamData !== lastStreamData) {
+      console.log('Stream list updated, refreshing dropdown...');
+      updateStreamDropdown(streams);
+    }
+    lastStreamData = newStreamData;
+  })
+  .catch(err => console.error('Error checking streams:', err));
+  
+  // Check message count updates and AUTO REFRESH page on change
+  const currentUrl = window.location.href;
+  fetch(currentUrl, {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(response => response.text())
+  .then(html => {
+    // Extract count from HTML
+    const match = html.match(/All Messages \((\d+) total\)/);
+    if (match) {
+      const newCount = parseInt(match[1]);
+      if (newCount !== lastMessageCount) {
+        console.log(`Message count changed: ${lastMessageCount} → ${newCount}`);
+        console.log('Auto-refreshing page...');
+        // Auto refresh halaman langsung
+        location.reload();
+      }
+    }
+  })
+  .catch(err => console.error('Error checking messages:', err));
+}
+
+function updateStreamDropdown(streams) {
+  const streamSelect = document.querySelector('select[name="stream"]');
+  const currentValue = streamSelect.value;
+  
+  // Save current selection
+  const selectedValue = currentValue;
+  
+  // Clear and rebuild options
+  streamSelect.innerHTML = '<option value="">All Streams</option>';
+  streams.forEach(stream => {
+    const option = document.createElement('option');
+    option.value = stream.video_id;
+    option.textContent = stream.title;
+    if (stream.video_id === selectedValue) {
+      option.selected = true;
+    }
+    streamSelect.appendChild(option);
+  });
+  
+  console.log(`Stream dropdown updated with ${streams.length} streams`);
+}
+
+function showUpdateNotification(newCount) {
+  // Remove existing notification if any
+  const existing = document.getElementById('auto-update-notification');
+  if (existing) existing.remove();
+  
+  // Show a subtle notification
+  const notification = document.createElement('div');
+  notification.id = 'auto-update-notification';
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #4680ff;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 9999;
+    cursor: pointer;
+    animation: slideIn 0.3s ease-out;
+  `;
+  notification.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <i class="feather icon-bell" style="font-size: 20px;"></i>
+      <div>
+        <strong>New Messages Available!</strong><br>
+        <small>Total: ${newCount} messages. Click to refresh page.</small>
+      </div>
+    </div>
+  `;
+  notification.onclick = () => location.reload();
+  document.body.appendChild(notification);
+  
+  // Auto remove after 8 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.style.animation = 'slideOut 0.3s ease-out';
+      setTimeout(() => notification.remove(), 300);
+    }
+  }, 8000);
+}
+
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(style);
+
+// Start auto-update polling
+setInterval(checkForUpdates, AUTO_UPDATE_INTERVAL);
+
 // Toggle display for individual message (AJAX - no page reload)
 function toggleDisplay(messageId, setToDisplay) {
   const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
