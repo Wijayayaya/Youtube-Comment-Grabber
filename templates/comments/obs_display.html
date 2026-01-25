@@ -134,7 +134,8 @@
 
     <script>
       (async function () {
-        const fetchUrl = "/api/display_messages/";
+        const videoId = "{{ video_id|default:'' }}";
+        const fetchUrl = videoId ? `/api/display_messages/?video_id=${videoId}` : "/api/display_messages/";
         let messages = [];
         let idx = 0;
         let currentMessageIds = "";

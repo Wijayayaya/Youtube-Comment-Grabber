@@ -20,6 +20,11 @@ def display(request):
     return render(request, 'comments/obs_display.html')
 
 
+def display_by_video(request, video_id):
+    """Public minimal page for displaying selected messages from a specific video."""
+    return render(request, 'comments/obs_display.html', {'video_id': video_id})
+
+
 @login_required(login_url='/admin/login/')
 def manage_display(request):
 	"""Admin page for ordering messages selected for public display."""
@@ -124,8 +129,14 @@ class DisplayMessagesApiView(View):
 		queryset = (
 			LiveChatMessage.objects.filter(display_selected=True)
 			.select_related('live_stream')
-			.order_by(Coalesce('display_order', Value(999999)), 'published_at')
 		)
+		
+		# Filter by video_id if provided
+		video_id = request.GET.get('video_id')
+		if video_id:
+			queryset = queryset.filter(live_stream__video_id=video_id)
+		
+		queryset = queryset.order_by(Coalesce('display_order', Value(999999)), 'published_at')
 
 		data = [
 			{

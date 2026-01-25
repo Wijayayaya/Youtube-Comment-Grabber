@@ -91,14 +91,17 @@
                 <td>{{ stream.last_polled_at|date:"d M Y H:i"|default:"-" }}</td>
                 <td>{{ stream.created_at|date:"d M Y" }}</td>
                 <td>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <a href="{% url 'comments:admin-livestream-edit' stream.pk %}" class="btn btn-info" title="Edit">
+                  <div class="btn-group btn-group-sm gap-2" role="group">
+                    <a href="{% url 'comments:admin-livestream-edit' stream.pk %}" class="btn btn-outline-info btn-sm rounded-2" title="Edit">
                       <i class="feather icon-edit"></i>
+                    </a>
+                    <a href="/display/{{ stream.video_id }}/" target="_blank" class="btn btn-outline-primary btn-sm rounded-2" title="Open OBS Display">
+                      <i class="feather icon-monitor"></i>
                     </a>
                     <form method="post" action="{% url 'comments:admin-livestream-delete' stream.pk %}" 
                           onsubmit="return confirm('Are you sure you want to delete this stream?');" style="display: inline;">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-danger" title="Delete">
+                      <button type="submit" class="btn btn-outline-danger btn-sm rounded-2" title="Delete">
                         <i class="feather icon-trash-2"></i>
                       </button>
                     </form>

@@ -43,6 +43,7 @@ urlpatterns = [
     # Original functionality (keeping URLs unchanged)
     path("messages/<int:pk>/status/", views.update_message_status, name="message-status"),
     path("display/", views.display, name="display"),
+    path("display/<str:video_id>/", views.display_by_video, name="display-by-video"),
     path("manage/", views.manage_display, name="manage-display"),
     path("api/manage/messages/", views.manage_messages_api, name="manage-messages-api"),
     path("api/manage/reorder/", views.reorder_manage_api, name="manage-reorder-api"),
