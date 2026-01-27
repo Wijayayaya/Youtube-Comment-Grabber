@@ -4,6 +4,28 @@
 {% block title %}Chat Messages - YouTube Comment Grabber{% endblock %}
 
 {% block content %}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title" id="deleteConfirmLabel">
+          <i class="feather icon-alert-triangle text-danger"></i> Confirm Delete
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Are you sure you want to delete this message? This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="submitDeleteForm()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- [ breadcrumb ] start -->
 <div class="page-header">
   <div class="page-block">
@@ -33,16 +55,17 @@
           <div class="row align-items-end">
             <div class="col-md-4">
               <label class="form-label">Search</label>
-              <input type="text" name="search" class="form-control" placeholder="Author or message..." value="{{ search_query }}">
+              <input type="text" name="search" class="form-control" placeholder="Author or message..."
+                value="{{ search_query }}">
             </div>
             <div class="col-md-4">
               <label class="form-label">Stream</label>
               <select name="stream" class="form-select">
                 <option value="">All Streams</option>
                 {% for stream in streams %}
-                  <option value="{{ stream.video_id }}" {% if stream_filter == stream.video_id %}selected{% endif %}>
-                    {{ stream.title|default:stream.video_id }}
-                  </option>
+                <option value="{{ stream.video_id }}" {% if stream_filter == stream.video_id %}selected{% endif %}>
+                  {{ stream.title|default:stream.video_id }}
+                </option>
                 {% endfor %}
               </select>
             </div>
@@ -74,11 +97,11 @@
         <h5>All Messages ({{ page_obj.paginator.count }} total)</h5>
       </div>
       <div class="card-body">
-        
+
         <!-- Bulk Actions -->
         <form method="post" action="{% url 'comments:admin-livechatmessage-bulk-action' %}" id="bulk-form">
           {% csrf_token %}
-          
+
           <!-- Quick Action Buttons (Only show when 4+ messages selected) -->
           <div id="quick-actions" class="d-none mb-3">
             <div class="alert alert-info d-flex align-items-center justify-content-between">
@@ -96,23 +119,23 @@
               </div>
             </div>
           </div>
-          
+
           <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
             <select name="action" class="form-select" style="max-width: 200px;">
               <option value="">More Actions...</option>
               <option value="mark_display">Mark for Display</option>
               <option value="unmark_display">Unmark for Display</option>
-              <option value="mark_sent">Mark as Sent</option>
-              <option value="mark_ignored">Mark as Ignored</option>
+              <option value="pin_message">Pin Message</option>
+              <option value="unpin_message">Unpin Message</option>
               <option value="delete">Delete</option>
             </select>
-            <button type="submit" class="btn btn-primary" 
-                    onclick="return confirm('Apply this action to selected messages?');">
+            <button type="submit" class="btn btn-primary"
+              onclick="return confirm('Apply this action to selected messages?');">
               <i class="feather icon-check"></i> Apply
             </button>
-            
+
             <div class="vr mx-2"></div>
-            
+
             <!-- Selection Buttons -->
             <button type="button" class="btn btn-outline-secondary" onclick="selectAll()">
               <i class="feather icon-check-square"></i> Select All
@@ -121,7 +144,7 @@
               <i class="feather icon-square"></i> Deselect All
             </button>
           </div>
-        
+
           <div class="table-responsive">
             <table class="table table-hover">
               <thead>
@@ -146,37 +169,67 @@
                   </td>
                   <td>
                     {% if message.author_profile_image_url %}
-                      <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}" 
-                           style="width: 36px; height: 36px; border-radius: 50%;">
+                    <img src="{{ message.author_profile_image_url }}" alt="{{ message.author_name }}"
+                      style="width: 36px; height: 36px; border-radius: 50%;">
                     {% else %}
-                      <div style="width: 36px; height: 36px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;">
-                        <i class="feather icon-user text-white"></i>
-                      </div>
+                    <div
+                      style="width: 36px; height: 36px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;">
+                      <i class="feather icon-user text-white"></i>
+                    </div>
                     {% endif %}
                   </td>
-                  <td><strong>{{ message.author_name }}</strong></td>
+                  <td>
+                    <strong>{{ message.author_name }}</strong>
+                    {% if message.is_pinned %}
+                    <span class="badge bg-warning text-dark" style="margin-left: 8px;" title="Pinned message">
+                      <i class="feather icon-bookmark" style="font-size: 12px;"></i>
+                    </span>
+                    {% endif %}
+                  </td>
                   <td>{{ message.message_text|truncatewords:15 }}</td>
                   <td><small>{{ message.live_stream.title|default:message.live_stream.video_id }}</small></td>
                   <td>
                     {% if message.display_selected %}
-                      <button type="button" class="btn btn-sm btn-success" 
-                              onclick="toggleDisplay({{ message.pk }}, false)" 
-                              title="Click to remove from display">
-                        <i class="feather icon-eye"></i> On
-                      </button>
+                    <button type="button" class="btn btn-sm btn-success"
+                      onclick="toggleDisplay({{ message.pk }}, false, event)" title="Click to remove from display">
+                      <i class="feather icon-eye"></i> On
+                    </button>
                     {% else %}
-                      <button type="button" class="btn btn-sm btn-secondary" 
-                              onclick="toggleDisplay({{ message.pk }}, true)" 
-                              title="Click to add to display">
-                        <i class="feather icon-eye-off"></i> Off
-                      </button>
+                    <button type="button" class="btn btn-sm btn-secondary"
+                      onclick="toggleDisplay({{ message.pk }}, true, event)" title="Click to add to display">
+                      <i class="feather icon-eye-off"></i> Off
+                    </button>
                     {% endif %}
                   </td>
                   <td><small>{{ message.published_at|date:"d M Y H:i" }}</small></td>
                   <td>
-                    <a href="{% url 'comments:admin-livechatmessage-detail' message.pk %}" class="btn btn-sm btn-info" title="View/Edit">
-                      <i class="feather icon-eye"></i>
-                    </a>
+                    <div class="d-flex gap-1">
+                      <a href="{% url 'comments:admin-livechatmessage-detail' message.pk %}"
+                        class="btn btn-sm btn-outline-info rounded-2" title="View/Edit">
+                        <i class="feather icon-eye"></i>
+                      </a>
+                      {% if message.is_pinned %}
+                      <button type="button" class="btn btn-sm btn-outline-warning rounded-2"
+                        onclick="togglePin({{ message.pk }}, false, event)" title="Unpin message">
+                        <i class="feather icon-bookmark"></i>
+                      </button>
+                      {% else %}
+                      <button type="button" class="btn btn-sm btn-outline-secondary rounded-2"
+                        onclick="togglePin({{ message.pk }}, true, event)" title="Pin message">
+                        <i class="feather icon-bookmark"></i>
+                      </button>
+                      {% endif %}
+                      <form method="post" action="{% url 'comments:admin-livechatmessage-bulk-action' %}"
+                        style="display: inline;" class="delete-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="message_ids" value="{{ message.id }}">
+                        <input type="hidden" name="action" value="delete">
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-2"
+                          onclick="showDeleteModal(this)" title="Delete">
+                          <i class="feather icon-trash-2"></i>
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
                 {% empty %}
@@ -188,36 +241,40 @@
             </table>
           </div>
         </form>
-        
+
         <!-- Pagination -->
         {% if page_obj.has_other_pages %}
         <nav aria-label="Page navigation">
           <ul class="pagination justify-content-center mt-3">
             {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
-              </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
+            </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
+            </li>
             {% endif %}
-            
+
             <li class="page-item active">
               <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
             </li>
-            
+
             {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
-              </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
+            </li>
+            <li class="page-item">
+              <a class="page-link"
+                href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
+            </li>
             {% endif %}
           </ul>
         </nav>
         {% endif %}
-        
+
       </div>
     </div>
   </div>
@@ -227,83 +284,83 @@
 
 {% block extra_js %}
 <script>
-// Auto-update polling
-let lastStreamData = '';
-let lastMessageCount = {{ page_obj.paginator.count }};
-const AUTO_UPDATE_INTERVAL = 5000; // 5 detik
+  // Auto-update polling
+  let lastStreamData = '';
+  let lastMessageCount = {{ page_obj.paginator.count }};
+  const AUTO_UPDATE_INTERVAL = 5000; // 5 detik
 
-function checkForUpdates() {
-  // Check stream list updates
-  fetch('/admin/livestreams/', {
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(response => response.json())
-  .then(data => {
-    const streams = data.streams || [];
-    const newStreamData = streams.map(s => s.video_id).sort().join(',');
-    
-    // If stream list changed, update dropdown
-    if (lastStreamData && newStreamData !== lastStreamData) {
-      console.log('Stream list updated, refreshing dropdown...');
-      updateStreamDropdown(streams);
-    }
-    lastStreamData = newStreamData;
-  })
-  .catch(err => console.error('Error checking streams:', err));
-  
-  // Check message count updates and AUTO REFRESH page on change
-  const currentUrl = window.location.href;
-  fetch(currentUrl, {
-    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-  })
-  .then(response => response.text())
-  .then(html => {
-    // Extract count from HTML
-    const match = html.match(/All Messages \((\d+) total\)/);
-    if (match) {
-      const newCount = parseInt(match[1]);
-      if (newCount !== lastMessageCount) {
-        console.log(`Message count changed: ${lastMessageCount} → ${newCount}`);
-        console.log('Auto-refreshing page...');
-        // Auto refresh halaman langsung
-        location.reload();
+  function checkForUpdates() {
+    // Check stream list updates
+    fetch('/admin/livestreams/', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(response => response.json())
+      .then(data => {
+        const streams = data.streams || [];
+        const newStreamData = streams.map(s => s.video_id).sort().join(',');
+
+        // If stream list changed, update dropdown
+        if (lastStreamData && newStreamData !== lastStreamData) {
+          console.log('Stream list updated, refreshing dropdown...');
+          updateStreamDropdown(streams);
+        }
+        lastStreamData = newStreamData;
+      })
+      .catch(err => console.error('Error checking streams:', err));
+
+    // Check message count updates and AUTO REFRESH page on change
+    const currentUrl = window.location.href;
+    fetch(currentUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(response => response.text())
+      .then(html => {
+        // Extract count from HTML
+        const match = html.match(/All Messages \((\d+) total\)/);
+        if (match) {
+          const newCount = parseInt(match[1]);
+          if (newCount !== lastMessageCount) {
+            console.log(`Message count changed: ${lastMessageCount} → ${newCount}`);
+            console.log('Auto-refreshing page...');
+            // Auto refresh halaman langsung
+            location.reload();
+          }
+        }
+      })
+      .catch(err => console.error('Error checking messages:', err));
+  }
+
+  function updateStreamDropdown(streams) {
+    const streamSelect = document.querySelector('select[name="stream"]');
+    const currentValue = streamSelect.value;
+
+    // Save current selection
+    const selectedValue = currentValue;
+
+    // Clear and rebuild options
+    streamSelect.innerHTML = '<option value="">All Streams</option>';
+    streams.forEach(stream => {
+      const option = document.createElement('option');
+      option.value = stream.video_id;
+      option.textContent = stream.title;
+      if (stream.video_id === selectedValue) {
+        option.selected = true;
       }
-    }
-  })
-  .catch(err => console.error('Error checking messages:', err));
-}
+      streamSelect.appendChild(option);
+    });
 
-function updateStreamDropdown(streams) {
-  const streamSelect = document.querySelector('select[name="stream"]');
-  const currentValue = streamSelect.value;
-  
-  // Save current selection
-  const selectedValue = currentValue;
-  
-  // Clear and rebuild options
-  streamSelect.innerHTML = '<option value="">All Streams</option>';
-  streams.forEach(stream => {
-    const option = document.createElement('option');
-    option.value = stream.video_id;
-    option.textContent = stream.title;
-    if (stream.video_id === selectedValue) {
-      option.selected = true;
-    }
-    streamSelect.appendChild(option);
-  });
-  
-  console.log(`Stream dropdown updated with ${streams.length} streams`);
-}
+    console.log(`Stream dropdown updated with ${streams.length} streams`);
+  }
 
-function showUpdateNotification(newCount) {
-  // Remove existing notification if any
-  const existing = document.getElementById('auto-update-notification');
-  if (existing) existing.remove();
-  
-  // Show a subtle notification
-  const notification = document.createElement('div');
-  notification.id = 'auto-update-notification';
-  notification.style.cssText = `
+  function showUpdateNotification(newCount) {
+    // Remove existing notification if any
+    const existing = document.getElementById('auto-update-notification');
+    if (existing) existing.remove();
+
+    // Show a subtle notification
+    const notification = document.createElement('div');
+    notification.id = 'auto-update-notification';
+    notification.style.cssText = `
     position: fixed;
     top: 20px;
     right: 20px;
@@ -316,7 +373,7 @@ function showUpdateNotification(newCount) {
     cursor: pointer;
     animation: slideIn 0.3s ease-out;
   `;
-  notification.innerHTML = `
+    notification.innerHTML = `
     <div style="display: flex; align-items: center; gap: 8px;">
       <i class="feather icon-bell" style="font-size: 20px;"></i>
       <div>
@@ -325,21 +382,21 @@ function showUpdateNotification(newCount) {
       </div>
     </div>
   `;
-  notification.onclick = () => location.reload();
-  document.body.appendChild(notification);
-  
-  // Auto remove after 8 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'slideOut 0.3s ease-out';
-      setTimeout(() => notification.remove(), 300);
-    }
-  }, 8000);
-}
+    notification.onclick = () => location.reload();
+    document.body.appendChild(notification);
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
+    // Auto remove after 8 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 8000);
+  }
+
+  // Add CSS animations
+  const style = document.createElement('style');
+  style.textContent = `
   @keyframes slideIn {
     from {
       transform: translateX(400px);
@@ -361,134 +418,210 @@ style.textContent = `
     }
   }
 `;
-document.head.appendChild(style);
+  document.head.appendChild(style);
 
-// Start auto-update polling
-setInterval(checkForUpdates, AUTO_UPDATE_INTERVAL);
+  // Start auto-update polling
+  setInterval(checkForUpdates, AUTO_UPDATE_INTERVAL);
 
-// Toggle display for individual message (AJAX - no page reload)
-function toggleDisplay(messageId, setToDisplay) {
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-  
-  // Get the button element (even if user clicked the icon inside)
-  let button = event.target;
-  if (button.tagName === 'I') {
-    button = button.closest('button');
-  }
-  
-  // Disable button during request
-  button.disabled = true;
-  
-  const formData = new FormData();
-  formData.append('csrfmiddlewaretoken', csrfToken);
-  formData.append('display_selected', setToDisplay ? 'on' : '');
-  
-  fetch(`/admin/messages/${messageId}/`, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest'
+  // Toggle display for individual message (AJAX - no page reload)
+  function toggleDisplay(messageId, setToDisplay, event) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Get the button element (even if user clicked the icon inside)
+    let button = event.target;
+    if (button.tagName === 'I') {
+      button = button.closest('button');
     }
-  })
-  .then(response => {
-    if (response.ok) {
-      // Toggle button appearance without page reload
-      if (setToDisplay) {
-        button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false)" title="Click to remove from display">
-          <i class="feather icon-eye"></i> On
-        </button>`;
-      } else {
-        button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true)" title="Click to add to display">
-          <i class="feather icon-eye-off"></i> Off
-        </button>`;
+
+    // Disable button during request
+    button.disabled = true;
+
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('display_selected', setToDisplay ? 'on' : '');
+
+    fetch(`/admin/messages/${messageId}/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
       }
-    } else {
-      alert('Failed to update display status');
-      button.disabled = false;
+    })
+      .then(response => {
+        if (response.ok) {
+          // Toggle button appearance without page reload
+          if (setToDisplay) {
+            button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false, event)" title="Click to remove from display"><i class="feather icon-eye"></i> On</button>`;
+          } else {
+            button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
+          }
+        } else {
+          alert('Failed to update display status');
+          button.disabled = false;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+        button.disabled = false;
+      });
+  }
+
+  // Toggle pin for individual message (AJAX - no page reload)
+  function togglePin(messageId, setToPin, event) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // Get the button element (even if user clicked the icon inside)
+    let button = event.target;
+    if (button.tagName === 'I') {
+      button = button.closest('button');
     }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    alert('An error occurred');
-    button.disabled = false;
+
+    // Disable button during request
+    button.disabled = true;
+
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('is_pinned', setToPin ? 'on' : '');
+
+    fetch(`/admin/messages/${messageId}/`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+      .then(response => {
+        if (response.ok) {
+          // Toggle button appearance and badge without page reload
+          const row = button.closest('tr');
+          const authorCell = row.querySelector('td:nth-child(3)');
+          const tbody = row.parentElement;
+          
+          if (setToPin) {
+            // Add pinned badge
+            const authorName = authorCell.querySelector('strong').textContent;
+            authorCell.innerHTML = `<strong>${authorName}</strong><span class="badge bg-warning text-dark" style="margin-left: 8px;" title="Pinned message"><i class="feather icon-bookmark" style="font-size: 12px;"></i></span>`;
+            
+            // Replace button with Unpin
+            const newButton = `<button type="button" class="btn btn-sm btn-outline-warning rounded-2" onclick="togglePin(${messageId}, false, event)" title="Unpin message"><i class="feather icon-bookmark"></i></button>`;
+            button.outerHTML = newButton;
+            
+            // Move row to top of table
+            tbody.insertBefore(row, tbody.firstChild);
+            
+            // Add smooth highlight animation
+            row.style.backgroundColor = '#fff3cd';
+            setTimeout(() => {
+              row.style.transition = 'background-color 1s ease';
+              row.style.backgroundColor = '';
+            }, 100);
+          } else {
+            // Remove pinned badge and reload page to restore original position
+            location.reload();
+          }
+        } else {
+          alert('Failed to update pin status');
+          button.disabled = false;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+        button.disabled = false;
+      });
+  }
+
+  function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('.message-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+    updateQuickActions();
+  }
+
+  function selectAll() {
+    const checkboxes = document.querySelectorAll('.message-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    document.getElementById('select-all-checkbox').checked = true;
+    updateQuickActions();
+  }
+
+  function deselectAll() {
+    const checkboxes = document.querySelectorAll('.message-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    document.getElementById('select-all-checkbox').checked = false;
+    updateQuickActions();
+  }
+
+  // Update quick actions visibility based on selection count
+  function updateQuickActions() {
+    const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+    const count = checkedBoxes.length;
+    const quickActions = document.getElementById('quick-actions');
+    const selectedCount = document.getElementById('selected-count');
+
+    if (count >= 4) {
+      quickActions.classList.remove('d-none');
+      selectedCount.textContent = count;
+    } else {
+      quickActions.classList.add('d-none');
+    }
+  }
+
+  // Add event listeners to all checkboxes
+  document.addEventListener('DOMContentLoaded', function () {
+    const checkboxes = document.querySelectorAll('.message-checkbox');
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', updateQuickActions);
+    });
   });
-}
 
-function toggleAll(source) {
-  const checkboxes = document.querySelectorAll('.message-checkbox');
-  checkboxes.forEach(cb => cb.checked = source.checked);
-  updateQuickActions();
-}
+  // Quick action functions
+  function markForDisplay() {
+    const form = document.getElementById('bulk-form');
+    const actionSelect = form.querySelector('select[name="action"]');
+    const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
 
-function selectAll() {
-  const checkboxes = document.querySelectorAll('.message-checkbox');
-  checkboxes.forEach(cb => cb.checked = true);
-  document.getElementById('select-all-checkbox').checked = true;
-  updateQuickActions();
-}
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one message.');
+      return;
+    }
 
-function deselectAll() {
-  const checkboxes = document.querySelectorAll('.message-checkbox');
-  checkboxes.forEach(cb => cb.checked = false);
-  document.getElementById('select-all-checkbox').checked = false;
-  updateQuickActions();
-}
-
-// Update quick actions visibility based on selection count
-function updateQuickActions() {
-  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
-  const count = checkedBoxes.length;
-  const quickActions = document.getElementById('quick-actions');
-  const selectedCount = document.getElementById('selected-count');
-  
-  if (count >= 4) {
-    quickActions.classList.remove('d-none');
-    selectedCount.textContent = count;
-  } else {
-    quickActions.classList.add('d-none');
+    if (confirm(`Add ${checkedBoxes.length} message(s) to display?`)) {
+      actionSelect.value = 'mark_display';
+      form.submit();
+    }
   }
-}
 
-// Add event listeners to all checkboxes
-document.addEventListener('DOMContentLoaded', function() {
-  const checkboxes = document.querySelectorAll('.message-checkbox');
-  checkboxes.forEach(cb => {
-    cb.addEventListener('change', updateQuickActions);
-  });
-});
+  // Delete confirmation modal
+  let currentDeleteForm = null;
 
-// Quick action functions
-function markForDisplay() {
-  const form = document.getElementById('bulk-form');
-  const actionSelect = form.querySelector('select[name="action"]');
-  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
-  
-  if (checkedBoxes.length === 0) {
-    alert('Please select at least one message.');
-    return;
+  function showDeleteModal(button) {
+    currentDeleteForm = button.closest('.delete-form');
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    deleteModal.show();
   }
-  
-  if (confirm(`Add ${checkedBoxes.length} message(s) to display?`)) {
-    actionSelect.value = 'mark_display';
-    form.submit();
-  }
-}
 
-function unmarkForDisplay() {
-  const form = document.getElementById('bulk-form');
-  const actionSelect = form.querySelector('select[name="action"]');
-  const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
-  
-  if (checkedBoxes.length === 0) {
-    alert('Please select at least one message.');
-    return;
+  function submitDeleteForm() {
+    if (currentDeleteForm) {
+      currentDeleteForm.submit();
+    }
   }
-  
-  if (confirm(`Remove ${checkedBoxes.length} message(s) from display?`)) {
-    actionSelect.value = 'unmark_display';
-    form.submit();
+
+  function unmarkForDisplay() {
+    const form = document.getElementById('bulk-form');
+    const actionSelect = form.querySelector('select[name="action"]');
+    const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one message.');
+      return;
+    }
+
+    if (confirm(`Remove ${checkedBoxes.length} message(s) from display?`)) {
+      actionSelect.value = 'unmark_display';
+      form.submit();
+    }
   }
-}
 
 </script>
 {% endblock %}

@@ -65,7 +65,7 @@
           <div class="mb-3">
             <label for="display_rotation_seconds" class="form-label">Display Rotation (seconds)</label>
             <input type="number" class="form-control" id="display_rotation_seconds" name="display_rotation_seconds" 
-                   value="{% if stream %}{{ stream.display_rotation_seconds }}{% else %}6{% endif %}" min="1" max="3600">
+                   value="{% if stream %}{{ stream.display_rotation_seconds }}{% else %}15{% endif %}" min="1" max="3600">
             <small class="form-text text-muted">How long each comment is shown in OBS display</small>
           </div>
           

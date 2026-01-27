@@ -12,7 +12,7 @@ class LiveStream(models.Model):
 	last_polled_at = models.DateTimeField(null=True, blank=True)
 	# OBS integration: reference to shared OBS config
 	# Display rotation: seconds each selected comment is shown
-	display_rotation_seconds = models.PositiveIntegerField(default=6, help_text='Seconds each comment is shown in the display')
+	display_rotation_seconds = models.PositiveIntegerField(default=15, help_text='Seconds each comment is shown in the display')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
@@ -39,6 +39,8 @@ class LiveChatMessage(models.Model):
 	author_profile_image_url = models.URLField(max_length=500, blank=True)
 	# Mark message to be shown on the public comment display
 	display_selected = models.BooleanField(default=False)
+	# Pin message to keep it at the top of the list
+	is_pinned = models.BooleanField(default=False, db_index=True)
 	message_text = models.TextField()
 	published_at = models.DateTimeField()
 	status = models.CharField(max_length=32, choices=Status.choices, default=Status.NEW)

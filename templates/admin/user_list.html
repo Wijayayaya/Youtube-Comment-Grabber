@@ -114,15 +114,15 @@
                 <td><small>{{ user.last_login|date:"d M Y H:i"|default:"-" }}</small></td>
                 <td><small>{{ user.date_joined|date:"d M Y" }}</small></td>
                 <td>
-                  <div class="btn-group btn-group-sm" role="group">
-                    <a href="{% url 'comments:admin-user-edit' user.pk %}" class="btn btn-info" title="Edit">
+                  <div class="btn-group btn-group-sm gap-2" role="group">
+                    <a href="{% url 'comments:admin-user-edit' user.pk %}" class="btn btn-outline-info btn-sm rounded-2" title="Edit">
                       <i class="feather icon-edit"></i>
                     </a>
                     {% if user.pk != request.user.pk %}
                     <form method="post" action="{% url 'comments:admin-user-delete' user.pk %}" 
                           onsubmit="return confirm('Are you sure you want to delete this user?');" style="display: inline;">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-danger" title="Delete">
+                      <button type="submit" class="btn btn-outline-danger btn-sm rounded-2" title="Delete">
                         <i class="feather icon-trash-2"></i>
                       </button>
                     </form>

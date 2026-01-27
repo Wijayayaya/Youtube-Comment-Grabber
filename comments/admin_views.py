@@ -183,7 +183,8 @@ def livechatmessage_list(request):
 	if display_filter:
 		messages_qs = messages_qs.filter(display_selected=(display_filter == 'true'))
 	
-	messages_qs = messages_qs.order_by('-published_at')
+	# Order by: pinned first (desc), then by published date (desc)
+	messages_qs = messages_qs.order_by('-is_pinned', '-published_at')
 	
 	# Pagination
 	paginator = Paginator(messages_qs, 30)
@@ -213,6 +214,7 @@ def livechatmessage_detail(request, pk):
 		message.note = request.POST.get('note', '')
 		previous_display_selected = message.display_selected
 		message.display_selected = request.POST.get('display_selected') == 'on'
+		message.is_pinned = request.POST.get('is_pinned') == 'on'
 		
 		if message.display_selected and not previous_display_selected:
 			message.status = LiveChatMessage.Status.SENT
@@ -249,6 +251,12 @@ def livechatmessage_bulk_action(request):
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)
 		messages.success(request, f'{count} message(s) unmarked for display.')
+	elif action == 'pin_message':
+		messages_qs.update(is_pinned=True)
+		messages.success(request, f'{count} message(s) pinned.')
+	elif action == 'unpin_message':
+		messages_qs.update(is_pinned=False)
+		messages.success(request, f'{count} message(s) unpinned.')
 	elif action == 'mark_sent':
 		messages_qs.update(status=LiveChatMessage.Status.SENT, sent_at=timezone.now())
 		messages.success(request, f'{count} message(s) marked as sent.')

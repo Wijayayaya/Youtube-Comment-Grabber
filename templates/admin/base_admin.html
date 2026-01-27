@@ -160,20 +160,24 @@
             </a>
           </li>
           
+          {% if request.user.is_superuser %}
           <li class="pc-item">
             <a href="{% url 'comments:admin-livestream-list' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="youtube"></i></span>
               <span class="pc-mtext">Live Streams</span>
             </a>
           </li>
+          {% endif %}
           
+          {% if request.user.is_staff %}
           <li class="pc-item">
             <a href="{% url 'comments:admin-livechatmessage-list' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="message-circle"></i></span>
               <span class="pc-mtext">Chat Messages</span>
             </a>
           </li>
-          
+          {% endif %}
+          {% if request.user.is_superuser %}
           <li class="pc-item pc-caption">
             <label>Management</label>
           </li>
@@ -184,6 +188,7 @@
               <span class="pc-mtext">Manage Display</span>
             </a>
           </li>
+          {% endif %}
           
           <li class="pc-item">
             <a href="{% url 'comments:display' %}" class="pc-link" target="_blank">
