@@ -242,7 +242,7 @@
 <script>
   // Status Distribution Pie Chart
   var statusChartOptions = {
-    series: [{{ new_messages }}, {{ reviewed_messages }}, { { sent_messages } }, { { ignored_messages } }],
+    series: [{{ new_messages }}, {{ reviewed_messages }}, {{ sent_messages }}, {{ ignored_messages }}],
   chart: {
     type: 'donut',
       height: 300,
@@ -296,18 +296,18 @@
               label: 'Total Messages',
                 color: '#ffffff',
                   formatter: function (w) {
-                    return {{ total_messages }
+                    return {{ total_messages }}
                   }
           }
         }
       }
     }
   }
-  },
+    },
   theme: {
     mode: 'dark'
   }
-};
+  };
 
   // Render status chart only if element exists
   const statusChartEl = document.querySelector("#status-chart");

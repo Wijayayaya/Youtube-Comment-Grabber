@@ -49,37 +49,96 @@
 <!-- Filter & Actions -->
 <div class="row">
   <div class="col-12">
-    <div class="card">
-      <div class="card-body">
-        <form method="get" action="{% url 'comments:admin-livechatmessage-list' %}">
-          <div class="row align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Search</label>
-              <input type="text" name="search" class="form-control" placeholder="Author or message..."
-                value="{{ search_query }}">
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 d-flex align-items-center">
+          <i class="feather icon-filter me-2 text-primary"></i> Advanced Filter
+        </h5>
+      </div>
+      <div class="card-body bg-light-50">
+        <form method="get" action="{% url 'comments:admin-livechatmessage-list' %}" class="filter-form">
+          <div class="row g-4">
+            <!-- Search -->
+            <div class="col-md-6 col-lg-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Author / Message</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                  <i class="feather icon-search text-muted"></i>
+                </span>
+                <input type="text" name="search" class="form-control border-start-0 ps-0"
+                  placeholder="Enter name or keyword..." value="{{ search_query }}">
+              </div>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Stream</label>
-              <select name="stream" class="form-select">
-                <option value="">All Streams</option>
-                {% for stream in streams %}
-                <option value="{{ stream.video_id }}" {% if stream_filter == stream.video_id %}selected{% endif %}>
-                  {{ stream.title|default:stream.video_id }}
-                </option>
-                {% endfor %}
-              </select>
+
+            <!-- Stream Selection -->
+            <div class="col-md-6 col-lg-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Live Stream</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                  <i class="feather icon-video text-muted"></i>
+                </span>
+                <select name="stream" class="form-select border-start-0 ps-0">
+                  <option value="">All Active Streams</option>
+                  {% for stream in streams %}
+                  <option value="{{ stream.video_id }}" {% if stream_filter == stream.video_id %}selected{% endif %}>
+                    {{ stream.title|default:stream.video_id }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
-            <div class="col-md-2">
-              <label class="form-label">Display</label>
-              <select name="display" class="form-select">
-                <option value="">All</option>
-                <option value="true" {% if display_filter == 'true' %}selected{% endif %}>Selected</option>
-                <option value="false" {% if display_filter == 'false' %}selected{% endif %}>Not Selected</option>
-              </select>
+
+            <!-- Display Status -->
+            <div class="col-md-6 col-lg-4">
+              <label class="form-label fw-bold small text-uppercase text-muted">Display Status</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0">
+                  <i class="feather icon-monitor text-muted"></i>
+                </span>
+                <select name="display" class="form-select border-start-0 ps-0">
+                  <option value="">Status: All</option>
+                  <option value="true" {% if display_filter == 'true' %}selected{% endif %}>Selected for OBS</option>
+                  <option value="false" {% if display_filter == 'false' %}selected{% endif %}>Not Selected</option>
+                </select>
+              </div>
             </div>
-            <div class="col-md-2">
-              <button type="submit" class="btn btn-primary w-100">
-                <i class="feather icon-search"></i> Filter
+
+            <!-- Date Range -->
+            <div class="col-md-12 col-lg-8">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold small text-uppercase text-muted">Start Date</label>
+                  <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                      <i class="feather icon-calendar text-muted"></i>
+                    </span>
+                    <input type="date" name="start_date" class="form-control border-start-0 ps-0"
+                      value="{{ start_date }}">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold small text-uppercase text-muted">End Date (Optional)</label>
+                  <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                      <i class="feather icon-calendar text-muted"></i>
+                    </span>
+                    <input type="date" name="end_date" class="form-control border-start-0 ps-0" value="{{ end_date }}">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <small class="text-muted"><i class="feather icon-info me-1"></i> Fill only Start Date to filter
+                    messages for that specific day.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="col-md-12 col-lg-4 d-flex align-items-end justify-content-end gap-2">
+              <a href="{% url 'comments:admin-livechatmessage-list' %}" class="btn btn-light-secondary px-4">
+                <i class="feather icon-refresh-cw me-1"></i> Reset
+              </a>
+              <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                <i class="feather icon-filter me-1"></i> Apply Filter
               </button>
             </div>
           </div>
@@ -249,11 +308,11 @@
             {% if page_obj.has_previous %}
             <li class="page-item">
               <a class="page-link"
-                href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">First</a>
+                href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">First</a>
             </li>
             <li class="page-item">
               <a class="page-link"
-                href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Previous</a>
+                href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">Previous</a>
             </li>
             {% endif %}
 
@@ -264,11 +323,11 @@
             {% if page_obj.has_next %}
             <li class="page-item">
               <a class="page-link"
-                href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Next</a>
+                href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">Next</a>
             </li>
             <li class="page-item">
               <a class="page-link"
-                href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}">Last</a>
+                href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if stream_filter %}&stream={{ stream_filter }}{% endif %}{% if display_filter %}&display={{ display_filter }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">Last</a>
             </li>
             {% endif %}
           </ul>

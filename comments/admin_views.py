@@ -167,6 +167,8 @@ def livechatmessage_list(request):
 	search_query = request.GET.get('search', '')
 	stream_filter = request.GET.get('stream', '')
 	display_filter = request.GET.get('display', '')
+	start_date = request.GET.get('start_date', '')
+	end_date = request.GET.get('end_date', '')
 	
 	messages_qs = LiveChatMessage.objects.select_related('live_stream').all()
 	
@@ -182,6 +184,13 @@ def livechatmessage_list(request):
 	
 	if display_filter:
 		messages_qs = messages_qs.filter(display_selected=(display_filter == 'true'))
+
+	if start_date and not end_date:
+		messages_qs = messages_qs.filter(published_at__date=start_date)
+	elif start_date and end_date:
+		messages_qs = messages_qs.filter(published_at__date__gte=start_date, published_at__date__lte=end_date)
+	elif not start_date and end_date:
+		messages_qs = messages_qs.filter(published_at__date__lte=end_date)
 	
 	# Order by: pinned first (desc), then by published date (desc)
 	messages_qs = messages_qs.order_by('-is_pinned', '-published_at')
@@ -199,6 +208,8 @@ def livechatmessage_list(request):
 		'search_query': search_query,
 		'stream_filter': stream_filter,
 		'display_filter': display_filter,
+		'start_date': start_date,
+		'end_date': end_date,
 		'streams': streams,
 	}
 	
