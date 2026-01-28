@@ -24,8 +24,8 @@ def admin_dashboard(request):
 	active_streams = LiveStream.objects.filter(is_active=True).count()
 	total_messages = LiveChatMessage.objects.count()
 	
-	# Status counts
-	new_messages = LiveChatMessage.objects.filter(status='new').count()
+	# Status counts (new_messages changed to 'today')
+	new_messages = LiveChatMessage.objects.filter(published_at__date=timezone.now().date()).count()
 	reviewed_messages = LiveChatMessage.objects.filter(status='reviewed').count()
 	sent_messages = LiveChatMessage.objects.filter(status='sent').count()
 	ignored_messages = LiveChatMessage.objects.filter(status='ignored').count()
@@ -107,7 +107,7 @@ def livestream_add(request):
 		video_id = request.POST.get('video_id', '').strip()
 		title = request.POST.get('title', '').strip()
 		is_active = request.POST.get('is_active') == 'on'
-		display_rotation_seconds = request.POST.get('display_rotation_seconds', 6)
+		display_rotation_seconds = request.POST.get('display_rotation_seconds', 15)
 		
 		if not video_id:
 			messages.error(request, 'Video ID is required.')
@@ -211,17 +211,50 @@ def livechatmessage_detail(request, pk):
 	message = get_object_or_404(LiveChatMessage.objects.select_related('live_stream'), pk=pk)
 	
 	if request.method == 'POST':
-		message.note = request.POST.get('note', '')
-		previous_display_selected = message.display_selected
-		message.display_selected = request.POST.get('display_selected') == 'on'
-		message.is_pinned = request.POST.get('is_pinned') == 'on'
+		print(f"DEBUG: Received POST for message {pk}: {request.POST}")
+		updated_fields = ['updated_at']
+		message.updated_at = timezone.now()
 		
-		if message.display_selected and not previous_display_selected:
-			message.status = LiveChatMessage.Status.SENT
-			if not message.sent_at:
+		# Update only fields present in POST (essential for AJAX partial updates)
+		if 'note' in request.POST:
+			message.note = request.POST.get('note', '')
+			updated_fields.append('note')
+		
+		# handle display_selected
+		if 'display_selected' in request.POST:
+			previous_display_selected = message.display_selected
+			message.display_selected = request.POST.get('display_selected') == 'on'
+			updated_fields.append('display_selected')
+			print(f"DEBUG: Updating display_selected to {message.display_selected}")
+			
+			if message.display_selected and not previous_display_selected:
+				message.status = LiveChatMessage.Status.SENT
 				message.sent_at = timezone.now()
+				message.display_order = None  # Reset order so it jumps to 'new priority' pool
+				updated_fields.extend(['status', 'sent_at', 'display_order'])
 		
-		message.save()
+		# handle is_pinned
+		if 'is_pinned' in request.POST:
+			message.is_pinned = request.POST.get('is_pinned') == 'on'
+			updated_fields.append('is_pinned')
+			print(f"DEBUG: Updating is_pinned to {message.is_pinned}")
+		
+		# Use update_fields to prevent overwriting other fields (e.g. from background polling)
+		print(f"DEBUG: Saving fields: {updated_fields}")
+		message.save(update_fields=updated_fields)
+		
+		# Verify save
+		message.refresh_from_db()
+		print(f"DEBUG: Verified after save - Pinned: {message.is_pinned}, Display: {message.display_selected}")
+		
+		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+			return JsonResponse({
+				'status': 'success',
+				'message': f'Message from "{message.author_name}" updated successfully.',
+				'is_pinned': message.is_pinned,
+				'display_selected': message.display_selected
+			})
+			
 		messages.success(request, f'Message from "{message.author_name}" updated successfully.')
 		return redirect('comments:admin-livechatmessage-list')
 	

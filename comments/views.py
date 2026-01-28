@@ -45,7 +45,7 @@ def manage_messages_api(request):
 	queryset = (
 		LiveChatMessage.objects.filter(display_selected=True)
 		.select_related('live_stream')
-		.order_by(Coalesce('display_order', Value(999999)), 'published_at')
+		.order_by(Coalesce('display_order', Value(0)), '-sent_at', '-published_at')
 	)
 
 	data = [
@@ -136,7 +136,7 @@ class DisplayMessagesApiView(View):
 		if video_id:
 			queryset = queryset.filter(live_stream__video_id=video_id)
 		
-		queryset = queryset.order_by(Coalesce('display_order', Value(999999)), 'published_at')
+		queryset = queryset.order_by(Coalesce('display_order', Value(0)), '-sent_at', '-published_at')
 
 		data = [
 			{

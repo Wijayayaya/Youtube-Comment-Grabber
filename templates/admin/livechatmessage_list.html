@@ -447,22 +447,23 @@
         'X-Requested-With': 'XMLHttpRequest'
       }
     })
-      .then(response => {
-        if (response.ok) {
-          // Toggle button appearance without page reload
-          if (setToDisplay) {
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Use data from server to update UI
+          if (data.display_selected) {
             button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false, event)" title="Click to remove from display"><i class="feather icon-eye"></i> On</button>`;
           } else {
             button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
           }
         } else {
-          alert('Failed to update display status');
+          alert('Failed to update display status: ' + (data.message || 'Unknown error'));
           button.disabled = false;
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred');
+        alert('An error occurred while updating display status');
         button.disabled = false;
       });
   }
@@ -491,25 +492,38 @@
         'X-Requested-With': 'XMLHttpRequest'
       }
     })
-      .then(response => {
-        if (response.ok) {
-          // Toggle button appearance and badge without page reload
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Check pagination state - if on page > 1, pinning will move item to page 1
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentPage = parseInt(urlParams.get('page')) || 1;
+
+          if (data.is_pinned && currentPage > 1) {
+            // Relocate to first page to see the pinned message
+            window.location.href = window.location.pathname + '?page=1';
+            return;
+          }
+
+          // Toggle button appearance and badge without page reload (for page 1)
           const row = button.closest('tr');
           const authorCell = row.querySelector('td:nth-child(3)');
           const tbody = row.parentElement;
-          
-          if (setToPin) {
-            // Add pinned badge
-            const authorName = authorCell.querySelector('strong').textContent;
-            authorCell.innerHTML = `<strong>${authorName}</strong><span class="badge bg-warning text-dark" style="margin-left: 8px;" title="Pinned message"><i class="feather icon-bookmark" style="font-size: 12px;"></i></span>`;
-            
+
+          if (data.is_pinned) {
+            // Add pinned badge if not already there
+            if (!authorCell.querySelector('.badge')) {
+              const authorName = authorCell.querySelector('strong').textContent;
+              authorCell.innerHTML = `<strong>${authorName}</strong> <span class="badge bg-warning text-dark" style="margin-left: 8px;" title="Pinned message"><i class="feather icon-bookmark" style="font-size: 12px;"></i></span>`;
+            }
+
             // Replace button with Unpin
             const newButton = `<button type="button" class="btn btn-sm btn-outline-warning rounded-2" onclick="togglePin(${messageId}, false, event)" title="Unpin message"><i class="feather icon-bookmark"></i></button>`;
             button.outerHTML = newButton;
-            
+
             // Move row to top of table
             tbody.insertBefore(row, tbody.firstChild);
-            
+
             // Add smooth highlight animation
             row.style.backgroundColor = '#fff3cd';
             setTimeout(() => {
@@ -517,17 +531,17 @@
               row.style.backgroundColor = '';
             }, 100);
           } else {
-            // Remove pinned badge and reload page to restore original position
+            // If unpinned, reload to restore natural sort order
             location.reload();
           }
         } else {
-          alert('Failed to update pin status');
+          alert('Failed to update pin status: ' + (data.message || 'Unknown error'));
           button.disabled = false;
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred');
+        alert('An error occurred while updating pin status');
         button.disabled = false;
       });
   }

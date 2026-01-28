@@ -1,241 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Live Comment Display</title>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        background: transparent;
-        overflow: hidden;
-      }
-      body {
-        color: #000000;
-        font-family: Arial, Helvetica, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-      }
-      
-      /* Container wrapper - tidak fullscreen */
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Live Comment Display</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    body {
+      color: #000000;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* Container wrapper - tidak fullscreen */
+    #root {
+      display: flex;
+      align-items: flex-end;
+      /* sejajarkan bawah agar rapi */
+      justify-content: flex-start;
+      gap: 0px;
+      /* benar-benar menempel tanpa celah */
+      width: 100%;
+      max-width: 1300px;
+      /* lebarkan area agar card lebih lebar */
+    }
+
+    /* Avatar kotak */
+    .avatar {
+      width: 130px;
+      height: 130px;
+      border-radius: 0;
+      object-fit: cover;
+      background: #ffffff;
+      border: 4px solid #e1251b;
+      /* Border dalam: merah */
+      /* Border luar: putih (lebih solid daripada box-shadow) */
+      outline: 4px solid #ffffff;
+      outline-offset: 0;
+      /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
+      box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
+      box-sizing: border-box;
+      flex-shrink: 0;
+      margin-bottom: 4px;
+      /* sejajarkan shadow bawah dengan card */
+    }
+
+    /* Card untuk username dan message */
+    .card {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px;
+      flex: 0 0 auto;
+      /* jangan melebar, cukup selebar konten */
+      width: auto;
+      /* lebar mengikuti .meta (100ch) + padding */
+      height: 100px;
+      /* tinggi fix agar 1-2 baris tidak geser */
+      min-height: 100px;
+      max-height: 100px;
+      background: #ffffff;
+      border: none;
+      /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
+      box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      width: 125ch;
+      /* target ~125 karakter per baris */
+      max-width: 125ch;
+      /* pastikan 2 baris ~250 karakter penuh */
+    }
+
+    .author {
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: #d81e0e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: -4px;
+      /* sedikit naikkan posisi author */
+    }
+
+    .message {
+      font-size: 1.15rem;
+      /* sedikit lebih kecil agar muat 100ch */
+      line-height: 1.3;
+      max-height: 54px;
+      /* 2 baris */
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      color: #000000;
+    }
+
+    .message::-webkit-scrollbar {
+      display: none;
+    }
+
+    .message {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @media (max-width: 1024px) {
       #root {
-        display: flex;
-        align-items: flex-end; /* sejajarkan bawah agar rapi */
-        justify-content: flex-start;
-        gap: 0px; /* benar-benar menempel tanpa celah */
-        width: 100%;
-        max-width: 1300px; /* lebarkan area agar card lebih lebar */
+        max-width: 800px;
       }
-      
-      /* Avatar kotak */
-      .avatar {
-        width: 130px;
-        height: 130px;
-        border-radius: 0;
-        object-fit: cover;
-        background: #ffffff;
-        border: 4px solid #e1251b; /* Border dalam: merah */
-        /* Border luar: putih (lebih solid daripada box-shadow) */
-        outline: 4px solid #ffffff;
-        outline-offset: 0;
-        /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
-        box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
-        box-sizing: border-box;
-        flex-shrink: 0;
-        margin-bottom: 4px; /* sejajarkan shadow bawah dengan card */
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
       }
-      
-      /* Card untuk username dan message */
-      .card {
-        display: flex;
+
+      #root {
         flex-direction: column;
-        padding: 12px 16px;
-        flex: 0 0 auto;        /* jangan melebar, cukup selebar konten */
-        width: auto;           /* lebar mengikuti .meta (100ch) + padding */
-        height: 100px;         /* tinggi fix agar 1-2 baris tidak geser */
+        gap: 16px;
+        max-width: 100%;
+      }
+
+      .avatar {
+        width: 100px;
+        height: 100px;
+      }
+
+      .card {
+        padding: 10px 12px;
+        height: 100px;
         min-height: 100px;
         max-height: 100px;
-        background: #ffffff;
-        border: none;
-        /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
-        box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
-        position: relative;
-        overflow: hidden;
-        box-sizing: border-box;
       }
-      
+
       .meta {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        flex: 1;
-        min-width: 0;
-        width: 125ch;        /* target ~125 karakter per baris */
-        max-width: 125ch;    /* pastikan 2 baris ~250 karakter penuh */
+        width: auto;
+        max-width: 100%;
       }
-      
+
       .author {
-        font-weight: 700;
-        font-size: 1.6rem;
-        color: #d81e0e;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-top: -4px; /* sedikit naikkan posisi author */
+        font-size: 1.4rem;
       }
-      
+
       .message {
-        font-size: 1.15rem;  /* sedikit lebih kecil agar muat 100ch */
-        line-height: 1.3;
-        max-height: 54px;    /* 2 baris */
-        overflow: hidden;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        color: #000000;
+        font-size: 0.98rem;
       }
+    }
+  </style>
+</head>
 
-      .message::-webkit-scrollbar {
-        display: none;
-      }
-      .message {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-
-      @media (max-width: 1024px) {
-        #root {
-          max-width: 800px;
-        }
-      }
-
-      @media (max-width: 640px) {
-        body {
-          padding: 12px;
-        }
-        #root {
-          flex-direction: column;
-          gap: 16px;
-          max-width: 100%;
-        }
-        .avatar {
-          width: 100px;
-          height: 100px;
-        }
-        .card {
-          padding: 10px 12px;
-          height: 100px;
-          min-height: 100px;
-          max-height: 100px;
-        }
-        .meta {
-          width: auto;
-          max-width: 100%;
-        }
-        .author {
-          font-size: 1.4rem;
-        }
-        .message {
-          font-size: 0.98rem;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root">
-      <img id="avatar" class="avatar" src="" alt="avatar" />
-      <div class="card">
-        <div class="meta">
-          <div id="author" class="author"></div>
-          <div id="message" class="message"></div>
-        </div>
+<body>
+  <div id="root">
+    <img id="avatar" class="avatar" src="" alt="avatar" />
+    <div class="card">
+      <div class="meta">
+        <div id="author" class="author"></div>
+        <div id="message" class="message"></div>
       </div>
     </div>
+  </div>
 
-    <script>
-      (async function () {
-        const videoId = "{{ video_id|default:'' }}";
-        const fetchUrl = videoId ? `/api/display_messages/?video_id=${videoId}` : "/api/display_messages/";
-        let messages = [];
-        let idx = 0;
-        let currentMessageIds = "";
-        let displayTimer = null;
-        const avatar = document.getElementById("avatar");
-        const author = document.getElementById("author");
-        const messageEl = document.getElementById("message");
+  <script>
+    (async function () {
+      const videoId = "{{ video_id|default:'' }}";
+      const fetchUrl = videoId ? `/api/display_messages/?video_id=${videoId}` : "/api/display_messages/";
+      let messages = [];
+      let idx = 0;
+      let currentMessageIds = "";
+      let displayTimer = null;
+      const avatar = document.getElementById("avatar");
+      const author = document.getElementById("author");
+      const messageEl = document.getElementById("message");
 
-        // Polling setiap 3 detik untuk cek perubahan data
-        const POLL_INTERVAL = 3000;
+      // Polling setiap 3 detik untuk cek perubahan data
+      const POLL_INTERVAL = 3000;
 
-        async function load() {
-          try {
-            const res = await fetch(fetchUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error("fetch failed");
-            const data = await res.json();
-            const newMessages = data.messages || [];
-            
-            // Cek apakah ada perubahan dengan membandingkan ID messages
-            const newMessageIds = newMessages.map(m => m.id).join(',');
-            const hasChanged = currentMessageIds !== newMessageIds;
-            
-            if (hasChanged) {
-              console.log('Messages updated, reloading display...');
-              messages = newMessages;
-              currentMessageIds = newMessageIds;
-              
-              // Reset index ke 0 saat ada perubahan
-              idx = 0;
-              
-              // Clear timer yang lama dan mulai show dari awal
-              if (displayTimer) {
-                clearTimeout(displayTimer);
-                displayTimer = null;
-              }
-              
-              if (messages.length === 0) {
-                author.textContent = "";
-                messageEl.textContent = "";
-                avatar.src = "";
-              } else {
-                show();
-              }
+      async function load() {
+        try {
+          const res = await fetch(fetchUrl, { cache: "no-store" });
+          if (!res.ok) throw new Error("fetch failed");
+          const data = await res.json();
+          const newMessages = data.messages || [];
+
+          // Cek apakah ada perubahan dengan membandingkan ID messages
+          const newMessageIds = newMessages.map(m => m.id).join(',');
+          const hasChanged = currentMessageIds !== newMessageIds;
+
+          if (hasChanged) {
+            console.log('Messages updated. Next rotation will start from priority (index 0).');
+            messages = newMessages;
+            currentMessageIds = newMessageIds;
+
+            // Reset index ke 0 agar pesan BERIKUTNYA adalah yang paling prioritas
+            idx = 0;
+
+            // Jika sebelumnya kosong atau sedang tidak berjalan, segera tampilkan
+            if (messages.length > 0 && !displayTimer) {
+              show();
             }
-          } catch (err) {
-            console.error('Error loading messages:', err);
+
+            // Jika sedang berjalan (displayTimer ada), kita tidak memanggil show() 
+            // agar pesan yang sekarang tampil menyelesaikan durasinya (~15 detik).
+            // Setelah selesai, setTimeout yang sudah ada akan memanggil show(), 
+            // dan show() akan mengambil messages[0] karena idx sudah kita reset.
           }
-        }
 
-        function show() {
-          if (!messages.length) return;
-          
-          const m = messages[idx % messages.length];
-          author.textContent = m.author_name || "";
-          messageEl.textContent = m.text || "";
-          avatar.src = m.author_profile_image_url || "";
-          
-          const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 6;
-          const delay = rotation * 1000;
-          
-          idx = (idx + 1) % messages.length;
-          
-          // Set timer untuk message berikutnya
-          displayTimer = setTimeout(() => {
-            show();
-          }, delay);
+          if (messages.length === 0) {
+            author.textContent = "";
+            messageEl.textContent = "";
+            avatar.src = "";
+          }
+        } catch (err) {
+          console.error('Error loading messages:', err);
         }
+      }
 
-        // Load data pertama kali
-        await load();
-        
-        // Polling berkala untuk cek perubahan
-        setInterval(load, POLL_INTERVAL);
-      })();
-    </script>
-  </body>
+      function show() {
+        // Reset timer variable so load() can detect if we need to restart
+        displayTimer = null;
+
+        if (!messages.length) return;
+
+        const m = messages[idx % messages.length];
+        author.textContent = m.author_name || "";
+        messageEl.textContent = m.text || "";
+        avatar.src = m.author_profile_image_url || "";
+
+        const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 15;
+        const delay = rotation * 1000;
+
+        idx = (idx + 1) % messages.length;
+
+        // Set timer untuk message berikutnya
+        displayTimer = setTimeout(() => {
+          show();
+        }, delay);
+      }
+
+      // Load data pertama kali
+      await load();
+
+      // Polling berkala untuk cek perubahan
+      setInterval(load, POLL_INTERVAL);
+    })();
+  </script>
+</body>
+
 </html>
