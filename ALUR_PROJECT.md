@@ -56,7 +56,7 @@ Sistem untuk mengambil live chat dari YouTube livestream, mengelolanya melalui a
 3. Tambah livestream baru di menu **Live Streams**
    - Masukkan **Video ID** dari YouTube
    - Set **is_active** = ON
-   - Atur **display_rotation_seconds** (default: 15 detik)
+   - Atur **display_rotation_seconds** (default: 6 detik)
 
 ### 2️⃣ Mengambil Live Chat dari YouTube
 1. Jalankan command polling (di terminal terpisah):
@@ -194,7 +194,7 @@ Youtube-Comment-Grabber/
 - `video_id` - ID video YouTube
 - `title` - Judul stream
 - `is_active` - Stream aktif atau tidak
-- `display_rotation_seconds` - Durasi tampil per chat (default: 15)
+- `display_rotation_seconds` - Durasi tampil per chat (default: 6)
 - `next_page_token` - Token untuk pagination YouTube API
 - `last_polled_at` - Terakhir fetch chat
 

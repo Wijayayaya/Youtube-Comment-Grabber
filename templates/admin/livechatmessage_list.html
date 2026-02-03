@@ -345,6 +345,35 @@
 
 {% block extra_js %}
 <script>
+  // Toast notification helper
+  function showToast(message, type = "info") {
+    // Create toast container if not exists
+    let container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "position-fixed top-0 end-0 p-3";
+      container.style.zIndex = "1080";
+      document.body.appendChild(container);
+    }
+
+    const toastEl = document.createElement("div");
+    toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+    toastEl.setAttribute("role", "alert");
+    toastEl.setAttribute("aria-live", "assertive");
+    toastEl.setAttribute("aria-atomic", "true");
+    toastEl.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    `;
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+  }
+
   // Auto-update polling
   let lastStreamData = '';
   let lastMessageCount = {{ page_obj.paginator.count }};
@@ -516,6 +545,22 @@
             button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false, event)" title="Click to remove from display"><i class="feather icon-eye"></i> On</button>`;
           } else {
             button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
+          }
+
+          if (data.display_limit_removed && data.display_limit_removed > 0) {
+            const removedIds = data.display_limit_removed_ids || [];
+            removedIds.forEach((id) => {
+              const checkbox = document.querySelector(`input[name="message_ids"][value="${id}"]`);
+              const row = checkbox ? checkbox.closest('tr') : null;
+              if (!row) return;
+              const displayButton = row.querySelector('button[onclick*="toggleDisplay"]');
+              if (displayButton) {
+                displayButton.outerHTML = `<button type="button" class="btn btn-sm btn-secondary" onclick="toggleDisplay(${id}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
+              }
+            });
+            
+            // Show toast notification
+            showToast(`Limit reached: ${data.display_limit_removed} old message(s) removed from display`, "warning");
           }
         } else {
           alert('Failed to update display status: ' + (data.message || 'Unknown error'));

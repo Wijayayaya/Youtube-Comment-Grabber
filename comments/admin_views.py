@@ -254,6 +254,12 @@ def livechatmessage_detail(request, pk):
 		print(f"DEBUG: Saving fields: {updated_fields}")
 		message.save(update_fields=updated_fields)
 		
+		# Enforce display limit if message was newly selected
+		removed_by_limit_ids = []
+		if 'display_selected' in request.POST and message.display_selected and not previous_display_selected:
+			from .services.display_limit import enforce_display_limit
+			removed_by_limit_ids = enforce_display_limit()
+
 		# Verify save
 		message.refresh_from_db()
 		print(f"DEBUG: Verified after save - Pinned: {message.is_pinned}, Display: {message.display_selected}")
@@ -263,7 +269,9 @@ def livechatmessage_detail(request, pk):
 				'status': 'success',
 				'message': f'Message from "{message.author_name}" updated successfully.',
 				'is_pinned': message.is_pinned,
-				'display_selected': message.display_selected
+				'display_selected': message.display_selected,
+				'display_limit_removed': len(removed_by_limit_ids),
+				'display_limit_removed_ids': removed_by_limit_ids,
 			})
 			
 		messages.success(request, f'Message from "{message.author_name}" updated successfully.')
@@ -291,6 +299,10 @@ def livechatmessage_bulk_action(request):
 	
 	if action == 'mark_display':
 		messages_qs.update(display_selected=True)
+		from .services.display_limit import enforce_display_limit
+		removed_ids = enforce_display_limit()
+		if removed_ids:
+			messages.info(request, f'{len(removed_ids)} oldest message(s) removed from display due to limit.')
 		messages.success(request, f'{count} message(s) marked for display.')
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)

@@ -48,6 +48,7 @@ urlpatterns = [
     path("api/manage/messages/", views.manage_messages_api, name="manage-messages-api"),
     path("api/manage/reorder/", views.reorder_manage_api, name="manage-reorder-api"),
     path("api/manage/update_rotation/", views.update_rotation_api, name="manage-update-rotation"),
+    path("api/manage/update_display_limit/", views.update_display_limit_api, name="manage-update-display-limit"),
     path("api/messages/", views.MessageListApiView.as_view(), name="messages-api"),
     path("api/display_messages/", views.DisplayMessagesApiView.as_view(), name="display-messages-api"),
     path(

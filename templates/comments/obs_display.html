@@ -187,8 +187,10 @@
       const fetchUrl = videoId ? `/api/display_messages/?video_id=${videoId}` : "/api/display_messages/";
       let messages = [];
       let idx = 0;
-      let currentMessageIds = "";
+      let currentIds = "";
+      let currentSignature = "";
       let displayTimer = null;
+      let currentMessageId = null;
       const avatar = document.getElementById("avatar");
       const author = document.getElementById("author");
       const messageEl = document.getElementById("message");
@@ -203,27 +205,50 @@
           const data = await res.json();
           const newMessages = data.messages || [];
 
-          // Cek apakah ada perubahan dengan membandingkan ID messages
-          const newMessageIds = newMessages.map(m => m.id).join(',');
-          const hasChanged = currentMessageIds !== newMessageIds;
+          // Cek perubahan: urutan/isi pesan dan perubahan rotation seconds
+          const newIds = newMessages.map(m => m.id).join(',');
+          const newSignature = newMessages.map(m => `${m.id}:${m.rotation_seconds}`).join(',');
+          const idsChanged = currentIds !== newIds;
+          const signatureChanged = currentSignature !== newSignature;
 
-          if (hasChanged) {
-            console.log('Messages updated. Next rotation will start from priority (index 0).');
+          if (signatureChanged) {
             messages = newMessages;
-            currentMessageIds = newMessageIds;
+            currentIds = newIds;
+            currentSignature = newSignature;
 
-            // Reset index ke 0 agar pesan BERIKUTNYA adalah yang paling prioritas
-            idx = 0;
+            if (idsChanged) {
+              console.log('Messages or order updated. Restarting from first message.');
+              // Reset index ke 0 dan langsung tampilkan
+              idx = 0;
+              
+              // Clear timer yang lagi jalan dan langsung show message pertama
+              if (displayTimer) {
+                clearTimeout(displayTimer);
+                displayTimer = null;
+              }
+              
+              if (messages.length > 0) {
+                show();
+              }
+            } else {
+              // Hanya rotation berubah, update timer tanpa ganti message
+              if (displayTimer && currentMessageId) {
+                const current = messages.find(m => m.id === currentMessageId);
+                if (current) {
+                  const rotation = (current.rotation_seconds && Number(current.rotation_seconds)) || 15;
+                  const delay = rotation * 1000;
+                  clearTimeout(displayTimer);
+                  displayTimer = setTimeout(() => {
+                    show();
+                  }, delay);
+                }
+              }
+            }
 
-            // Jika sebelumnya kosong atau sedang tidak berjalan, segera tampilkan
+            // Jika sebelumnya kosong dan sekarang ada, segera tampilkan
             if (messages.length > 0 && !displayTimer) {
               show();
             }
-
-            // Jika sedang berjalan (displayTimer ada), kita tidak memanggil show() 
-            // agar pesan yang sekarang tampil menyelesaikan durasinya (~15 detik).
-            // Setelah selesai, setTimeout yang sudah ada akan memanggil show(), 
-            // dan show() akan mengambil messages[0] karena idx sudah kita reset.
           }
 
           if (messages.length === 0) {
@@ -243,6 +268,7 @@
         if (!messages.length) return;
 
         const m = messages[idx % messages.length];
+        currentMessageId = m.id;
         author.textContent = m.author_name || "";
         messageEl.textContent = m.text || "";
         avatar.src = m.author_profile_image_url || "";

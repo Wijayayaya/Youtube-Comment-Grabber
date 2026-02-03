@@ -29,12 +29,24 @@ def display_by_video(request, video_id):
 def manage_display(request):
 	"""Admin page for ordering messages selected for public display."""
 	from .models import LiveStream
+	from .services.display_limit import enforce_display_limit
 
 	# Provide current rotation seconds when rendering the standalone manage page too
 	first = LiveStream.objects.order_by('-created_at').first()
 	current_rotation_seconds = first.display_rotation_seconds if first else ''
+	current_display_limit = first.display_limit if first else ''
 
-	return render(request, 'comments/manage_display.html', {'current_rotation_seconds': current_rotation_seconds})
+	# Enforce display limit on page load to handle existing selections
+	enforce_display_limit()
+
+	return render(
+		request,
+		'comments/manage_display.html',
+		{
+			'current_rotation_seconds': current_rotation_seconds,
+			'current_display_limit': current_display_limit,
+		},
+	)
 
 
 @login_required(login_url='/admin/login/')
@@ -70,6 +82,7 @@ def manage_messages_api(request):
 def reorder_manage_api(request):
 	"""Accepts JSON body: {"order": [message_id1, message_id2, ...]} and updates display_order."""
 	from .models import LiveChatMessage
+	from .services.display_limit import enforce_display_limit
 
 	try:
 		payload = json.loads(request.body.decode('utf-8'))
@@ -94,6 +107,8 @@ def reorder_manage_api(request):
 
 		if updated:
 			LiveChatMessage.objects.bulk_update(updated, ['display_order', 'display_selected', 'updated_at'])
+
+	enforce_display_limit()
 
 	return JsonResponse({'status': 'ok', 'updated': len(updated)})
 
@@ -121,6 +136,44 @@ def update_rotation_api(request):
 		s.save(update_fields=['display_rotation_seconds', 'updated_at'])
 
 	return JsonResponse({'status': 'ok', 'seconds': seconds_int, 'updated_streams': len(streams)})
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def update_display_limit_api(request):
+	"""Update `display_limit` for all live streams.
+	Expects form POST with `limit`.
+	"""
+	from .models import LiveStream
+	from .services.display_limit import enforce_display_limit
+
+	limit = request.POST.get('limit')
+	if not limit:
+		return HttpResponseBadRequest('Missing limit')
+
+	try:
+		limit_int = int(limit)
+	except ValueError:
+		return HttpResponseBadRequest('Invalid limit')
+
+	if limit_int <= 0:
+		return HttpResponseBadRequest('Limit must be positive')
+
+	streams = list(LiveStream.objects.all())
+	for s in streams:
+		s.display_limit = limit_int
+		s.save(update_fields=['display_limit', 'updated_at'])
+
+	removed_ids = enforce_display_limit(limit_int)
+
+	return JsonResponse(
+		{
+			'status': 'ok',
+			'limit': limit_int,
+			'updated_streams': len(streams),
+			'removed': len(removed_ids),
+		}
+	)
 
 
 class DisplayMessagesApiView(View):

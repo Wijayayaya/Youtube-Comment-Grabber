@@ -13,6 +13,8 @@ class LiveStream(models.Model):
 	# OBS integration: reference to shared OBS config
 	# Display rotation: seconds each selected comment is shown
 	display_rotation_seconds = models.PositiveIntegerField(default=15, help_text='Seconds each comment is shown in the display')
+	# Max number of messages kept in display rotation (excluding pinned)
+	display_limit = models.PositiveIntegerField(default=100, help_text='Max number of messages kept in display rotation (excluding pinned)')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
