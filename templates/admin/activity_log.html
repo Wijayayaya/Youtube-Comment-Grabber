@@ -180,3 +180,32 @@
   </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+  // Auto-update polling (Activity Log)
+  let lastActivityCount = {{ page_obj.paginator.count }};
+  const ACTIVITY_AUTO_UPDATE_INTERVAL = 5000; // 5 detik
+
+  function checkActivityUpdates() {
+    const currentUrl = window.location.href;
+    fetch(currentUrl, {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(response => response.text())
+      .then(html => {
+        const match = html.match(/All Activities \((\d+) total\)/);
+        if (match) {
+          const newCount = parseInt(match[1]);
+          if (newCount !== lastActivityCount) {
+            lastActivityCount = newCount;
+            location.reload();
+          }
+        }
+      })
+      .catch(err => console.error('Error checking activity logs:', err));
+  }
+
+  setInterval(checkActivityUpdates, ACTIVITY_AUTO_UPDATE_INTERVAL);
+</script>
+{% endblock %}
