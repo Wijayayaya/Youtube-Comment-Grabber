@@ -68,8 +68,8 @@
                 <th>Action</th>
                 <th>Message</th>
                 <th>Stream</th>
-                <th>Details</th>
                 <th>IP</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -106,6 +106,9 @@
                   {% if log.message %}
                     <div><strong>{{ log.message.author_name }}</strong></div>
                     <small class="text-muted">{{ log.message.message_text|truncatechars:60 }}</small>
+                  {% elif log.details.message_author %}
+                    <div><strong>{{ log.details.message_author }}</strong></div>
+                    <small class="text-muted">{{ log.details.message_text|truncatechars:60 }}</small>
                   {% else %}
                     -
                   {% endif %}
@@ -113,12 +116,27 @@
                 <td>
                   {% if log.livestream %}
                     {{ log.livestream.title|default:log.livestream.video_id }}
+                  {% elif log.details.stream_title or log.details.stream_video_id %}
+                    {{ log.details.stream_title|default:log.details.stream_video_id }}
                   {% else %}
                     -
                   {% endif %}
                 </td>
-                <td><small class="text-muted">{{ log.details|default:"-" }}</small></td>
                 <td><small>{{ log.ip_address|default:"-" }}</small></td>
+                <td>
+                  <div class="btn-group btn-group-sm gap-2" role="group">
+                    <a href="{% url 'comments:admin-activity-log-detail' log.pk %}" class="btn btn-outline-info btn-sm rounded-2" title="View Detail">
+                      <i class="feather icon-eye"></i>
+                    </a>
+                    <form method="post" action="{% url 'comments:admin-activity-log-delete' log.pk %}" style="display: inline;"
+                          onsubmit="return confirm('Delete this activity log?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-danger btn-sm rounded-2" title="Delete">
+                        <i class="feather icon-trash-2"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
               </tr>
               {% empty %}
               <tr>

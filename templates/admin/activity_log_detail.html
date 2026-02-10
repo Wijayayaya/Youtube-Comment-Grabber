@@ -1,0 +1,109 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Activity Detail - YouTube Comment Grabber{% endblock %}
+
+{% block header_title %}Activity Detail{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">Activity Detail</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-activity-log' %}">Activity Log</a></li>
+          <li class="breadcrumb-item" aria-current="page">Detail</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Log #{{ log.id }}</h5>
+        <div class="d-flex gap-2">
+          <a href="{% url 'comments:admin-activity-log' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="feather icon-arrow-left"></i> Back
+          </a>
+          <form method="post" action="{% url 'comments:admin-activity-log-delete' log.pk %}" onsubmit="return confirm('Delete this activity log?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+              <i class="feather icon-trash-2"></i> Delete
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Time</div>
+              <div class="fw-semibold">{{ log.created_at|date:"d M Y H:i" }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">User</div>
+              <div class="fw-semibold">{{ log.user.username|default:"system" }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Action</div>
+              <div class="fw-semibold">{{ log.action }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">IP</div>
+              <div class="fw-semibold">{{ log.ip_address|default:"-" }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Stream</div>
+              <div class="fw-semibold">
+                {% if log.livestream %}
+                  {{ log.livestream.title|default:log.livestream.video_id }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Message</div>
+              <div class="fw-semibold">
+                {% if log.message %}
+                  {{ log.message.author_name }}
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+              {% if log.message %}
+                <div class="text-muted small mt-2">{{ log.message.message_text }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Details</div>
+              <pre class="mb-0" style="white-space: pre-wrap;">{{ log.details|default:"-" }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

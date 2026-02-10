@@ -352,9 +352,28 @@ def livechatmessage_bulk_action(request):
 		messages.success(request, f'{count} message(s) marked as ignored.')
 		log_activity(request, 'bulk_mark_ignored', details={'count': count, 'message_ids': message_ids})
 	elif action == 'delete':
+		snapshots = []
+		for msg in messages_qs.select_related('live_stream'):
+			snapshots.append({
+				'author_name': msg.author_name,
+				'message_text': msg.message_text,
+				'stream_title': msg.live_stream.title if msg.live_stream else None,
+				'stream_video_id': msg.live_stream.video_id if msg.live_stream else None,
+			})
+		details = {'count': count, 'message_ids': message_ids}
+		if snapshots:
+			first = snapshots[0]
+			details.update({
+				'message_author': first.get('author_name'),
+				'message_text': first.get('message_text'),
+				'stream_title': first.get('stream_title'),
+				'stream_video_id': first.get('stream_video_id'),
+			})
+			if count > 1:
+				details['messages'] = snapshots[:3]
 		messages_qs.delete()
 		messages.success(request, f'{count} message(s) deleted.')
-		log_activity(request, 'bulk_delete', details={'count': count, 'message_ids': message_ids})
+		log_activity(request, 'bulk_delete', details=details)
 	else:
 		messages.error(request, 'Unknown action.')
 	
@@ -401,6 +420,31 @@ def activity_log_list(request):
 	}
 
 	return render(request, 'admin/activity_log.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def activity_log_detail(request, pk):
+	"""View activity log detail (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	log = get_object_or_404(ActivityLog.objects.select_related('user', 'message', 'livestream'), pk=pk)
+	return render(request, 'admin/activity_log_detail.html', {'log': log})
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def activity_log_delete(request, pk):
+	"""Delete activity log entry (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	log = get_object_or_404(ActivityLog, pk=pk)
+	log.delete()
+	messages.success(request, 'Activity log deleted.')
+	return redirect('comments:admin-activity-log')
 
 
 # ============================================
