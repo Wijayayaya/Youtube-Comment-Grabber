@@ -186,8 +186,6 @@
               <option value="">More Actions...</option>
               <option value="mark_display">Mark for Display</option>
               <option value="unmark_display">Unmark for Display</option>
-              <option value="pin_message">Pin Message</option>
-              <option value="unpin_message">Unpin Message</option>
               <option value="delete">Delete</option>
             </select>
             <button type="submit" class="btn btn-primary"
@@ -717,7 +715,11 @@
 
   function showDeleteModal(button) {
     currentDeleteForm = button.closest('.delete-form');
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    const modalEl = document.getElementById('deleteConfirmModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    const deleteModal = new bootstrap.Modal(modalEl);
     deleteModal.show();
   }
 

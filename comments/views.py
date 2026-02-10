@@ -13,6 +13,7 @@ from django.db.models.functions import Coalesce
 import json
 
 from .models import LiveChatMessage
+from .services.activity_log import log_activity
 
 
 def display(request):
@@ -110,6 +111,12 @@ def reorder_manage_api(request):
 
 	enforce_display_limit()
 
+	log_activity(
+		request,
+		'reorder_display',
+		details={'count': len(order), 'message_ids': order},
+	)
+
 	return JsonResponse({'status': 'ok', 'updated': len(updated)})
 
 
@@ -134,6 +141,12 @@ def update_rotation_api(request):
 	for s in streams:
 		s.display_rotation_seconds = seconds_int
 		s.save(update_fields=['display_rotation_seconds', 'updated_at'])
+
+	log_activity(
+		request,
+		'update_rotation_seconds',
+		details={'seconds': seconds_int, 'updated_streams': len(streams)},
+	)
 
 	return JsonResponse({'status': 'ok', 'seconds': seconds_int, 'updated_streams': len(streams)})
 
@@ -165,6 +178,12 @@ def update_display_limit_api(request):
 		s.save(update_fields=['display_limit', 'updated_at'])
 
 	removed_ids = enforce_display_limit(limit_int)
+
+	log_activity(
+		request,
+		'update_display_limit',
+		details={'limit': limit_int, 'updated_streams': len(streams), 'removed': len(removed_ids)},
+	)
 
 	return JsonResponse(
 		{

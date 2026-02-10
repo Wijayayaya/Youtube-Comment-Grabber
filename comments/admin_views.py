@@ -14,7 +14,8 @@ from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from django.contrib.auth import update_session_auth_hash
 
-from .models import LiveStream, LiveChatMessage
+from .models import LiveStream, LiveChatMessage, ActivityLog
+from .services.activity_log import log_activity
 
 
 @login_required(login_url='/admin/login/')
@@ -225,6 +226,10 @@ def livechatmessage_detail(request, pk):
 		print(f"DEBUG: Received POST for message {pk}: {request.POST}")
 		updated_fields = ['updated_at']
 		message.updated_at = timezone.now()
+		previous_display_selected = message.display_selected
+		previous_is_pinned = message.is_pinned
+		display_changed = False
+		pin_changed = False
 		
 		# Update only fields present in POST (essential for AJAX partial updates)
 		if 'note' in request.POST:
@@ -233,10 +238,10 @@ def livechatmessage_detail(request, pk):
 		
 		# handle display_selected
 		if 'display_selected' in request.POST:
-			previous_display_selected = message.display_selected
 			message.display_selected = request.POST.get('display_selected') == 'on'
 			updated_fields.append('display_selected')
 			print(f"DEBUG: Updating display_selected to {message.display_selected}")
+			display_changed = message.display_selected != previous_display_selected
 			
 			if message.display_selected and not previous_display_selected:
 				message.status = LiveChatMessage.Status.SENT
@@ -249,6 +254,7 @@ def livechatmessage_detail(request, pk):
 			message.is_pinned = request.POST.get('is_pinned') == 'on'
 			updated_fields.append('is_pinned')
 			print(f"DEBUG: Updating is_pinned to {message.is_pinned}")
+			pin_changed = message.is_pinned != previous_is_pinned
 		
 		# Use update_fields to prevent overwriting other fields (e.g. from background polling)
 		print(f"DEBUG: Saving fields: {updated_fields}")
@@ -263,6 +269,26 @@ def livechatmessage_detail(request, pk):
 		# Verify save
 		message.refresh_from_db()
 		print(f"DEBUG: Verified after save - Pinned: {message.is_pinned}, Display: {message.display_selected}")
+
+		if display_changed:
+			action = 'select_display' if message.display_selected else 'unselect_display'
+			log_activity(
+				request,
+				action,
+				message=message,
+				livestream=message.live_stream,
+				details={'source': 'single'},
+			)
+
+		if pin_changed:
+			action = 'pin' if message.is_pinned else 'unpin'
+			log_activity(
+				request,
+				action,
+				message=message,
+				livestream=message.live_stream,
+				details={'source': 'single'},
+			)
 		
 		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
 			return JsonResponse({
@@ -304,28 +330,77 @@ def livechatmessage_bulk_action(request):
 		if removed_ids:
 			messages.info(request, f'{len(removed_ids)} oldest message(s) removed from display due to limit.')
 		messages.success(request, f'{count} message(s) marked for display.')
+		log_activity(request, 'bulk_select_display', details={'count': count, 'message_ids': message_ids, 'removed_ids': removed_ids})
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)
 		messages.success(request, f'{count} message(s) unmarked for display.')
+		log_activity(request, 'bulk_unselect_display', details={'count': count, 'message_ids': message_ids})
 	elif action == 'pin_message':
 		messages_qs.update(is_pinned=True)
 		messages.success(request, f'{count} message(s) pinned.')
+		log_activity(request, 'bulk_pin', details={'count': count, 'message_ids': message_ids})
 	elif action == 'unpin_message':
 		messages_qs.update(is_pinned=False)
 		messages.success(request, f'{count} message(s) unpinned.')
+		log_activity(request, 'bulk_unpin', details={'count': count, 'message_ids': message_ids})
 	elif action == 'mark_sent':
 		messages_qs.update(status=LiveChatMessage.Status.SENT, sent_at=timezone.now())
 		messages.success(request, f'{count} message(s) marked as sent.')
+		log_activity(request, 'bulk_mark_sent', details={'count': count, 'message_ids': message_ids})
 	elif action == 'mark_ignored':
 		messages_qs.update(status=LiveChatMessage.Status.IGNORED)
 		messages.success(request, f'{count} message(s) marked as ignored.')
+		log_activity(request, 'bulk_mark_ignored', details={'count': count, 'message_ids': message_ids})
 	elif action == 'delete':
 		messages_qs.delete()
 		messages.success(request, f'{count} message(s) deleted.')
+		log_activity(request, 'bulk_delete', details={'count': count, 'message_ids': message_ids})
 	else:
 		messages.error(request, 'Unknown action.')
 	
 	return redirect('comments:admin-livechatmessage-list')
+
+
+@login_required(login_url='/admin/login/')
+def activity_log_list(request):
+	"""List activity logs (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	search_query = request.GET.get('search', '')
+	action_filter = request.GET.get('action', '')
+
+	logs = ActivityLog.objects.select_related('user', 'message', 'livestream')
+
+	if search_query:
+		logs = logs.filter(
+			Q(user__username__icontains=search_query) |
+			Q(action__icontains=search_query) |
+			Q(message__author_name__icontains=search_query) |
+			Q(message__message_text__icontains=search_query) |
+			Q(livestream__video_id__icontains=search_query)
+		)
+
+	if action_filter:
+		logs = logs.filter(action=action_filter)
+
+	actions = ActivityLog.objects.values_list('action', flat=True).distinct().order_by('action')
+
+	logs = logs.order_by('-created_at')
+
+	paginator = Paginator(logs, 50)
+	page_number = request.GET.get('page', 1)
+	page_obj = paginator.get_page(page_number)
+
+	context = {
+		'page_obj': page_obj,
+		'search_query': search_query,
+		'action_filter': action_filter,
+		'actions': actions,
+	}
+
+	return render(request, 'admin/activity_log.html', context)
 
 
 # ============================================

@@ -1,0 +1,164 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Activity Log - YouTube Comment Grabber{% endblock %}
+
+{% block header_title %}Activity Log{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">Activity Log</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item" aria-current="page">Activity Log</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<!-- Filter & Actions -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <form method="get" action="{% url 'comments:admin-activity-log' %}" class="d-flex gap-2 flex-wrap">
+          <input type="text" name="search" class="form-control" placeholder="Search user, action, message, stream..." value="{{ search_query }}">
+          <select name="action" class="form-select" style="max-width: 220px;">
+            <option value="">All Actions</option>
+            {% for action in actions %}
+              <option value="{{ action }}" {% if action_filter == action %}selected{% endif %}>{{ action }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary">
+            <i class="feather icon-search"></i> Search
+          </button>
+          <a href="{% url 'comments:admin-activity-log' %}" class="btn btn-light-secondary">
+            <i class="feather icon-refresh-cw"></i> Reset
+          </a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Logs Table -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5>All Activities ({{ page_obj.paginator.count }} total)</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Message</th>
+                <th>Stream</th>
+                <th>Details</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in page_obj %}
+              <tr>
+                <td><small>{{ log.created_at|date:"d M Y H:i" }}</small></td>
+                <td>{{ log.user.username|default:"system" }}</td>
+                <td>
+                  {% if log.action == 'bulk_delete' or log.action == 'delete' %}
+                    <span class="badge bg-danger">Delete</span>
+                  {% elif log.action == 'pin' or log.action == 'bulk_pin' %}
+                    <span class="badge bg-warning text-dark">Pin</span>
+                  {% elif log.action == 'unpin' or log.action == 'bulk_unpin' %}
+                    <span class="badge bg-secondary">Unpin</span>
+                  {% elif log.action == 'select_display' or log.action == 'bulk_select_display' %}
+                    <span class="badge bg-success">On</span>
+                  {% elif log.action == 'unselect_display' or log.action == 'bulk_unselect_display' %}
+                    <span class="badge bg-dark">Off</span>
+                  {% elif log.action == 'reorder_display' %}
+                    <span class="badge bg-primary">Reorder</span>
+                  {% elif log.action == 'update_rotation_seconds' %}
+                    <span class="badge bg-info text-dark">Rotation</span>
+                  {% elif log.action == 'update_display_limit' %}
+                    <span class="badge bg-info text-dark">Display Limit</span>
+                  {% elif log.action == 'bulk_mark_sent' %}
+                    <span class="badge bg-primary">Mark Sent</span>
+                  {% elif log.action == 'bulk_mark_ignored' %}
+                    <span class="badge bg-secondary">Mark Ignored</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">{{ log.action }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if log.message %}
+                    <div><strong>{{ log.message.author_name }}</strong></div>
+                    <small class="text-muted">{{ log.message.message_text|truncatechars:60 }}</small>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if log.livestream %}
+                    {{ log.livestream.title|default:log.livestream.video_id }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td><small class="text-muted">{{ log.details|default:"-" }}</small></td>
+                <td><small>{{ log.ip_address|default:"-" }}</small></td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted">No activity found</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center mt-3">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}">First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}">Previous</a>
+              </li>
+            {% endif %}
+
+            <li class="page-item active">
+              <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}">Last</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

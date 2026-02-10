@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 
 class LiveStream(models.Model):
@@ -78,4 +79,21 @@ class ManageableLiveChatMessage(LiveChatMessage):
 		proxy = True
 		verbose_name = 'Manage live chat'
 		verbose_name_plural = 'Manage live chat'
+
+
+class ActivityLog(models.Model):
+	user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	action = models.CharField(max_length=64, db_index=True)
+	message = models.ForeignKey(LiveChatMessage, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	livestream = models.ForeignKey(LiveStream, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	details = models.JSONField(default=dict, blank=True)
+	ip_address = models.GenericIPAddressField(null=True, blank=True)
+	created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+	class Meta:
+		ordering = ['-created_at']
+
+	def __str__(self) -> str:
+		user_label = self.user.username if self.user else 'system'
+		return f"{user_label}: {self.action}"
 

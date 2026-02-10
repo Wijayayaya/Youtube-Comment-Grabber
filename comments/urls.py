@@ -29,6 +29,7 @@ urlpatterns = [
     path("admin/groups/add/", admin_views.group_add, name="admin-group-add"),
     path("admin/groups/<int:pk>/edit/", admin_views.group_edit, name="admin-group-edit"),
     path("admin/groups/<int:pk>/delete/", admin_views.group_delete, name="admin-group-delete"),
+    path("admin/activity-logs/", admin_views.activity_log_list, name="admin-activity-log"),
     
     # Profile & Password Views
     path("admin/profile/", admin_views.profile_view, name="admin-profile"),
