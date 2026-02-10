@@ -322,6 +322,27 @@ def livechatmessage_bulk_action(request):
 	
 	messages_qs = LiveChatMessage.objects.filter(id__in=message_ids)
 	count = messages_qs.count()
+
+	snapshots = []
+	for msg in messages_qs.select_related('live_stream'):
+		snapshots.append({
+			'author_name': msg.author_name,
+			'message_text': msg.message_text,
+			'stream_title': msg.live_stream.title if msg.live_stream else None,
+			'stream_video_id': msg.live_stream.video_id if msg.live_stream else None,
+		})
+
+	base_details = {'count': count, 'message_ids': message_ids}
+	if snapshots:
+		first = snapshots[0]
+		base_details.update({
+			'message_author': first.get('author_name'),
+			'message_text': first.get('message_text'),
+			'stream_title': first.get('stream_title'),
+			'stream_video_id': first.get('stream_video_id'),
+		})
+		if count > 1:
+			base_details['messages'] = snapshots[:3]
 	
 	if action == 'mark_display':
 		messages_qs.update(display_selected=True)
@@ -329,50 +350,33 @@ def livechatmessage_bulk_action(request):
 		removed_ids = enforce_display_limit()
 		if removed_ids:
 			messages.info(request, f'{len(removed_ids)} oldest message(s) removed from display due to limit.')
-		messages.success(request, f'{count} message(s) marked for display.')
-		log_activity(request, 'bulk_select_display', details={'count': count, 'message_ids': message_ids, 'removed_ids': removed_ids})
+		messages.add_message(request, messages.SUCCESS, f'{count} message(s) marked for display.', extra_tags='success')
+		details = {**base_details, 'removed_ids': removed_ids}
+		log_activity(request, 'bulk_select_display', details=details)
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)
-		messages.success(request, f'{count} message(s) unmarked for display.')
-		log_activity(request, 'bulk_unselect_display', details={'count': count, 'message_ids': message_ids})
+		messages.add_message(request, messages.INFO, f'{count} message(s) removed from display.', extra_tags='secondary')
+		log_activity(request, 'bulk_unselect_display', details=base_details)
 	elif action == 'pin_message':
 		messages_qs.update(is_pinned=True)
-		messages.success(request, f'{count} message(s) pinned.')
-		log_activity(request, 'bulk_pin', details={'count': count, 'message_ids': message_ids})
+		messages.add_message(request, messages.WARNING, f'{count} message(s) pinned.', extra_tags='warning')
+		log_activity(request, 'bulk_pin', details=base_details)
 	elif action == 'unpin_message':
 		messages_qs.update(is_pinned=False)
-		messages.success(request, f'{count} message(s) unpinned.')
-		log_activity(request, 'bulk_unpin', details={'count': count, 'message_ids': message_ids})
+		messages.add_message(request, messages.INFO, f'{count} message(s) unpinned.', extra_tags='secondary')
+		log_activity(request, 'bulk_unpin', details=base_details)
 	elif action == 'mark_sent':
 		messages_qs.update(status=LiveChatMessage.Status.SENT, sent_at=timezone.now())
-		messages.success(request, f'{count} message(s) marked as sent.')
-		log_activity(request, 'bulk_mark_sent', details={'count': count, 'message_ids': message_ids})
+		messages.add_message(request, messages.INFO, f'{count} message(s) marked as sent.', extra_tags='info')
+		log_activity(request, 'bulk_mark_sent', details=base_details)
 	elif action == 'mark_ignored':
 		messages_qs.update(status=LiveChatMessage.Status.IGNORED)
-		messages.success(request, f'{count} message(s) marked as ignored.')
-		log_activity(request, 'bulk_mark_ignored', details={'count': count, 'message_ids': message_ids})
+		messages.add_message(request, messages.INFO, f'{count} message(s) marked as ignored.', extra_tags='secondary')
+		log_activity(request, 'bulk_mark_ignored', details=base_details)
 	elif action == 'delete':
-		snapshots = []
-		for msg in messages_qs.select_related('live_stream'):
-			snapshots.append({
-				'author_name': msg.author_name,
-				'message_text': msg.message_text,
-				'stream_title': msg.live_stream.title if msg.live_stream else None,
-				'stream_video_id': msg.live_stream.video_id if msg.live_stream else None,
-			})
-		details = {'count': count, 'message_ids': message_ids}
-		if snapshots:
-			first = snapshots[0]
-			details.update({
-				'message_author': first.get('author_name'),
-				'message_text': first.get('message_text'),
-				'stream_title': first.get('stream_title'),
-				'stream_video_id': first.get('stream_video_id'),
-			})
-			if count > 1:
-				details['messages'] = snapshots[:3]
+		details = base_details.copy()
 		messages_qs.delete()
-		messages.success(request, f'{count} message(s) deleted.')
+		messages.add_message(request, messages.ERROR, f'{count} message(s) deleted.', extra_tags='danger')
 		log_activity(request, 'bulk_delete', details=details)
 	else:
 		messages.error(request, 'Unknown action.')

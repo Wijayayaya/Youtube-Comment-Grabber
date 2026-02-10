@@ -379,12 +379,11 @@
     <div class="pc-content">
 
       {% if messages %}
-      {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      <div id="django-messages" class="d-none">
+        {% for message in messages %}
+        <div data-tags="{{ message.tags|default:'info' }}" data-text="{{ message|escapejs }}"></div>
+        {% endfor %}
       </div>
-      {% endfor %}
       {% endif %}
 
       {% block content %}{% endblock %}
@@ -401,7 +400,33 @@
   <script src="{% static 'assets/js/pcoded.js' %}"></script>
   <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
 
+  <!-- Toast Container -->
+  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1080">
+    <div id="toast-container"></div>
+  </div>
+
   <script>
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      if (!container) return;
+
+      const toastEl = document.createElement("div");
+      toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+      toastEl.setAttribute("role", "alert");
+      toastEl.setAttribute("aria-live", "assertive");
+      toastEl.setAttribute("aria-atomic", "true");
+      toastEl.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+      container.appendChild(toastEl);
+      const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+      toast.show();
+      toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+    }
+
     // Theme setup
     if (typeof layout_change === 'function') {
       layout_change('dark');
@@ -414,6 +439,25 @@
     document.addEventListener('DOMContentLoaded', function () {
       // Smooth Page Loading
       document.body.classList.remove('is-loading');
+
+      // Show Django messages as toasts
+      const messageContainer = document.getElementById('django-messages');
+      if (messageContainer) {
+        const items = messageContainer.querySelectorAll('div[data-tags][data-text]');
+        const preferredOrder = ['danger', 'warning', 'success', 'primary', 'secondary', 'info', 'dark', 'light'];
+        items.forEach((item) => {
+          const tags = (item.getAttribute('data-tags') || '').split(' ').filter(Boolean);
+          const text = item.getAttribute('data-text') || '';
+          let toastType = 'info';
+          if (tags.includes('error')) {
+            toastType = 'danger';
+          } else {
+            const match = preferredOrder.find((t) => tags.includes(t));
+            if (match) toastType = match;
+          }
+          if (text) showToast(text, toastType);
+        });
+      }
 
       const sidebarToggle = document.getElementById('sidebar-hide');
       const sidebarClose = document.getElementById('sidebar-close');

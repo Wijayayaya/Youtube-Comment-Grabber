@@ -28,6 +28,27 @@
   </div>
 </div>
 
+<!-- Action Confirmation Modal -->
+<div class="modal fade" id="actionConfirmModal" tabindex="-1" aria-labelledby="actionConfirmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title" id="actionConfirmLabel">
+          <i class="feather icon-info text-primary"></i> Confirm Action
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="actionConfirmMessage">Are you sure?</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmActionBtn">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- [ breadcrumb ] start -->
 <div class="page-header">
   <div class="page-block">
@@ -186,10 +207,11 @@
               <option value="">More Actions...</option>
               <option value="mark_display">Mark for Display</option>
               <option value="unmark_display">Unmark for Display</option>
+              <option value="pin_message">Pin Message</option>
+              <option value="unpin_message">Unpin Message</option>
               <option value="delete">Delete</option>
             </select>
-            <button type="submit" class="btn btn-primary"
-              onclick="return confirm('Apply this action to selected messages?');">
+            <button type="submit" class="btn btn-primary">
               <i class="feather icon-check"></i> Apply
             </button>
 
@@ -278,16 +300,10 @@
                         <i class="feather icon-bookmark"></i>
                       </button>
                       {% endif %}
-                      <form method="post" action="{% url 'comments:admin-livechatmessage-bulk-action' %}"
-                        style="display: inline;" class="delete-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="message_ids" value="{{ message.id }}">
-                        <input type="hidden" name="action" value="delete">
-                        <button type="button" class="btn btn-sm btn-outline-danger rounded-2"
-                          onclick="showDeleteModal(this)" title="Delete">
-                          <i class="feather icon-trash-2"></i>
-                        </button>
-                      </form>
+                      <button type="button" class="btn btn-sm btn-outline-danger rounded-2"
+                        data-message-id="{{ message.id }}" onclick="showDeleteModal(this)" title="Delete">
+                        <i class="feather icon-trash-2"></i>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -299,6 +315,13 @@
               </tbody>
             </table>
           </div>
+        </form>
+
+        <!-- Single Delete Form (separate from bulk form to avoid action conflicts) -->
+        <form method="post" action="{% url 'comments:admin-livechatmessage-bulk-action' %}" id="single-delete-form">
+          {% csrf_token %}
+          <input type="hidden" name="message_ids" id="single-delete-message-id" value="">
+          <input type="hidden" name="action" value="delete">
         </form>
 
         <!-- Pagination -->
@@ -343,34 +366,6 @@
 
 {% block extra_js %}
 <script>
-  // Toast notification helper
-  function showToast(message, type = "info") {
-    // Create toast container if not exists
-    let container = document.getElementById("toast-container");
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "toast-container";
-      container.className = "position-fixed top-0 end-0 p-3";
-      container.style.zIndex = "1080";
-      document.body.appendChild(container);
-    }
-
-    const toastEl = document.createElement("div");
-    toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
-    toastEl.setAttribute("role", "alert");
-    toastEl.setAttribute("aria-live", "assertive");
-    toastEl.setAttribute("aria-atomic", "true");
-    toastEl.innerHTML = `
-      <div class="d-flex">
-        <div class="toast-body">${message}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>
-    `;
-    container.appendChild(toastEl);
-    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-    toast.show();
-    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
-  }
 
   // Auto-update polling
   let lastStreamData = '';
@@ -561,13 +556,13 @@
             showToast(`Limit reached: ${data.display_limit_removed} old message(s) removed from display`, "warning");
           }
         } else {
-          alert('Failed to update display status: ' + (data.message || 'Unknown error'));
+          showToast('Failed to update display status: ' + (data.message || 'Unknown error'), 'danger');
           button.disabled = false;
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while updating display status');
+        showToast('An error occurred while updating display status', 'danger');
         button.disabled = false;
       });
   }
@@ -639,13 +634,13 @@
             location.reload();
           }
         } else {
-          alert('Failed to update pin status: ' + (data.message || 'Unknown error'));
+          showToast('Failed to update pin status: ' + (data.message || 'Unknown error'), 'danger');
           button.disabled = false;
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while updating pin status');
+        showToast('An error occurred while updating pin status', 'danger');
         button.disabled = false;
       });
   }
@@ -700,21 +695,21 @@
     const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
 
     if (checkedBoxes.length === 0) {
-      alert('Please select at least one message.');
+      showToast('Please select at least one message.', 'warning');
       return;
     }
 
-    if (confirm(`Add ${checkedBoxes.length} message(s) to display?`)) {
+    showConfirmModal(`Add ${checkedBoxes.length} message(s) to display?`, () => {
       actionSelect.value = 'mark_display';
       form.submit();
-    }
+    });
   }
 
   // Delete confirmation modal
-  let currentDeleteForm = null;
+  let currentDeleteMessageId = null;
 
   function showDeleteModal(button) {
-    currentDeleteForm = button.closest('.delete-form');
+    currentDeleteMessageId = button.getAttribute('data-message-id');
     const modalEl = document.getElementById('deleteConfirmModal');
     if (modalEl && modalEl.parentElement !== document.body) {
       document.body.appendChild(modalEl);
@@ -724,8 +719,12 @@
   }
 
   function submitDeleteForm() {
-    if (currentDeleteForm) {
-      currentDeleteForm.submit();
+    if (!currentDeleteMessageId) return;
+    const input = document.getElementById('single-delete-message-id');
+    const form = document.getElementById('single-delete-form');
+    if (input && form) {
+      input.value = currentDeleteMessageId;
+      form.submit();
     }
   }
 
@@ -735,15 +734,59 @@
     const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
 
     if (checkedBoxes.length === 0) {
-      alert('Please select at least one message.');
+      showToast('Please select at least one message.', 'warning');
       return;
     }
 
-    if (confirm(`Remove ${checkedBoxes.length} message(s) from display?`)) {
+    showConfirmModal(`Remove ${checkedBoxes.length} message(s) from display?`, () => {
       actionSelect.value = 'unmark_display';
       form.submit();
-    }
+    });
   }
+
+  let pendingConfirmAction = null;
+
+  function showConfirmModal(message, onConfirm) {
+    pendingConfirmAction = onConfirm;
+    const modalEl = document.getElementById('actionConfirmModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    const messageEl = document.getElementById('actionConfirmMessage');
+    if (messageEl) messageEl.textContent = message;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const confirmBtn = document.getElementById('confirmActionBtn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', function () {
+        const modalEl = document.getElementById('actionConfirmModal');
+        const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modal) modal.hide();
+        if (typeof pendingConfirmAction === 'function') {
+          const fn = pendingConfirmAction;
+          pendingConfirmAction = null;
+          fn();
+        }
+      });
+    }
+
+    const bulkForm = document.getElementById('bulk-form');
+    if (bulkForm) {
+      bulkForm.addEventListener('submit', function (e) {
+        const actionSelect = bulkForm.querySelector('select[name="action"]');
+        const actionValue = actionSelect ? actionSelect.value : '';
+        if (!actionValue) return;
+
+        const selectedOption = actionSelect.options[actionSelect.selectedIndex];
+        const actionLabel = selectedOption ? selectedOption.text.trim() : 'this action';
+        e.preventDefault();
+        showConfirmModal(`Apply ${actionLabel} to selected messages?`, () => bulkForm.submit());
+      });
+    }
+  });
 
 </script>
 {% endblock %}
