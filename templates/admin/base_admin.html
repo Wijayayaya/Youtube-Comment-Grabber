@@ -253,6 +253,13 @@
               <span class="pc-mtext">Chat Messages</span>
             </a>
           </li>
+
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-manual-message' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="edit"></i></span>
+              <span class="pc-mtext">Input Manual</span>
+            </a>
+          </li>
           {% endif %}
           {% if request.user.is_staff %}
           <li class="pc-item pc-caption">
@@ -265,6 +272,7 @@
               <span class="pc-mtext">Manage Display</span>
             </a>
           </li>
+
           {% endif %}
 
           <li class="pc-item">

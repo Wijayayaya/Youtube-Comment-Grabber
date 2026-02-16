@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.conf import settings
+from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from comments import views as comments_views
 
@@ -29,3 +31,6 @@ urlpatterns = [
     # Custom manage display view
     # path('admin/comments/manage/', admin.site.admin_view(comments_views.manage_display), name='admin-manage-display'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

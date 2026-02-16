@@ -1,0 +1,348 @@
+{% extends "admin/base_admin.html" %}
+{% load static %}
+
+{% block title %}Input Manual - YouTube Comment Grabber{% endblock %}
+
+{% block header_title %}Input Manual{% endblock %}
+
+{% block content %}
+<!-- [ breadcrumb ] start -->
+<div class="page-header">
+  <div class="page-block">
+    <div class="row align-items-center">
+      <div class="col-md-12">
+        <div class="page-header-title">
+          <h5 class="mb-0">Input Komentar Manual</h5>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <ul class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'comments:admin-dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item" aria-current="page">Input Manual</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- [ breadcrumb ] end -->
+
+<div class="row justify-content-center">
+  <div class="col-xl-8 col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 d-flex align-items-center">
+          <i class="feather icon-edit me-2 text-primary"></i> Form Input Komentar
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" id="manual-message-form">
+          {% csrf_token %}
+
+          <div class="avatar-alert" id="avatar-alert">
+            <i data-feather="alert-circle"></i>
+            <span>Silakan upload avatar terlebih dahulu</span>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-4">
+              <div class="d-flex flex-column align-items-center justify-content-center h-75">
+                <div class="avatar-uploader">
+                  <label class="avatar-label" for="avatar-file">
+                    {% if latest_avatar and latest_avatar.image %}
+                    <img id="avatar-preview" src="{{ latest_avatar.image.url }}" alt="Avatar" class="avatar-preview">
+                    {% else %}
+                    <div id="avatar-preview" class="avatar-preview avatar-placeholder">
+                      <div class="avatar-placeholder-inner">
+                        <div class="avatar-placeholder-icon">⬆️</div>
+                        <div class="avatar-placeholder-title">Upload Avatar</div>
+                        <div class="avatar-placeholder-subtitle">Klik untuk pilih</div>
+                      </div>
+                    </div>
+                    {% endif %}
+                    <div class="avatar-overlay">
+                      <i data-feather="camera"></i>
+                      <span>Upload</span>
+                    </div>
+                  </label>
+                  <input id="avatar-file" type="file" name="avatar_file" accept="image/*" class="d-none" {% if not latest_avatar or not latest_avatar.image %}required{% endif %}>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label class="form-label fw-bold small text-uppercase text-muted">Nama</label>
+                <input type="text" name="author_name" class="form-control" placeholder="Nama penulis" value="{{ author_name|default:'' }}" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-bold small text-uppercase text-muted">Pesan</label>
+                <textarea id="message-text" name="message_text" class="form-control" rows="5" placeholder="Tulis komentar" maxlength="250" required>{{ message_text|default:'' }}</textarea>
+                <div class="character-counter-wrapper">
+                  <span class="text-muted small">Max 250 karakter</span>
+                  <span id="char-count" class="character-counter">0/250</span>
+                </div>
+              </div>
+
+              <div class="text-end">
+                <button type="submit" class="btn btn-primary">
+                  <i class="feather icon-send"></i> Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .avatar-uploader {
+    position: relative;
+    width: 180px;
+    height: 180px;
+  }
+
+  .avatar-label {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    border: 3px solid rgba(59, 130, 246, 0.4);
+    background: transparent;
+    transition: all 0.3s ease;
+  }
+
+  .avatar-label:hover {
+    border-color: rgba(59, 130, 246, 0.8);
+    box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+  }
+
+  .avatar-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: 2px dashed #d1d5db;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .avatar-placeholder-inner {
+    text-align: center;
+    color: #6b7280;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .avatar-placeholder-icon {
+    font-size: 48px;
+    line-height: 1;
+    display: block;
+  }
+
+  .avatar-placeholder-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #374151;
+  }
+
+  .avatar-placeholder-subtitle {
+    font-size: 11px;
+    color: #9ca3af;
+    white-space: nowrap;
+  }
+
+  .avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: 50%;
+  }
+
+  .avatar-label:hover .avatar-overlay {
+    opacity: 1;
+  }
+
+  .avatar-overlay i {
+    width: 22px;
+    height: 22px;
+  }
+
+  .form-control,
+  .form-select {
+    border-radius: 10px;
+  }
+
+  .btn-primary {
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+  }
+
+  .character-counter-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding: 0 8px;
+  }
+
+  .character-counter {
+    font-weight: 600;
+    color: #212529bf;
+  }
+
+  .character-counter.warning {
+    color: #f59e0b;
+  }
+
+  .character-counter.danger {
+    color: #ef4444;
+  }
+
+  @media (max-width: 767px) {
+    .col-md-4 > div {
+      height: auto !important;
+    }
+  }
+
+  /* Avatar alert styling */
+  .avatar-alert {
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .avatar-alert.show {
+    display: flex;
+  }
+
+  .avatar-alert i {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const avatarInput = document.getElementById('avatar-file');
+    const avatarPreview = document.getElementById('avatar-preview');
+    const messageText = document.getElementById('message-text');
+    const charCount = document.getElementById('char-count');
+    const formEl = document.getElementById('manual-message-form');
+    const avatarAlert = document.getElementById('avatar-alert');
+    let hasAvatar = {% if latest_avatar %} true {% else %} false {% endif %};
+
+    // Initialize feather icons
+    if (typeof feather !== 'undefined') {
+      feather.replace();
+    }
+
+    // Show/hide avatar alert
+    function updateAvatarAlert() {
+      if (hasAvatar) {
+        avatarAlert.classList.remove('show');
+      } else {
+        avatarAlert.classList.add('show');
+      }
+    }
+
+    updateAvatarAlert();
+
+    // Avatar upload
+    if (avatarInput) {
+      avatarInput.addEventListener('change', (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        
+        const url = URL.createObjectURL(file);
+        
+        // Update preview
+        if (avatarPreview.tagName.toLowerCase() === 'img') {
+          avatarPreview.src = url;
+        } else {
+          const img = document.createElement('img');
+          img.id = 'avatar-preview';
+          img.className = 'avatar-preview';
+          img.src = url;
+          img.alt = 'Avatar';
+          avatarPreview.replaceWith(img);
+        }
+        
+        hasAvatar = true;
+        updateAvatarAlert();
+      });
+    }
+
+    // Form submission validation
+    if (formEl) {
+      formEl.addEventListener('submit', function(e) {
+        if (!hasAvatar) {
+          e.preventDefault();
+          avatarAlert.classList.add('show');
+          avatarAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        }
+      });
+    }
+
+    // Character counter for message
+    function updateCharCount() {
+      if (!messageText) return;
+      const count = messageText.value.length;
+      charCount.textContent = `${count}/250`;
+      
+      if (count <= 150) {
+        charCount.classList.remove('warning', 'danger');
+      } else if (count <= 200) {
+        charCount.classList.remove('danger');
+        charCount.classList.add('warning');
+      } else {
+        charCount.classList.add('danger');
+      }
+    }
+
+    if (messageText) {
+      messageText.addEventListener('input', updateCharCount);
+      messageText.addEventListener('paste', () => setTimeout(updateCharCount, 0));
+      updateCharCount();
+    }
+  });
+</script>
+{% endblock %}

@@ -59,7 +59,33 @@
           <div class="col-md-6">
             <div class="border rounded p-3 h-100">
               <div class="text-muted small">Action</div>
-              <div class="fw-semibold">{{ log.action }}</div>
+              <div class="fw-semibold">
+                {% if log.action == 'manual_message_create' %}
+                  Manual Input
+                {% elif log.action == 'bulk_delete' or log.action == 'delete' %}
+                  Delete
+                {% elif log.action == 'pin' or log.action == 'bulk_pin' %}
+                  Pin
+                {% elif log.action == 'unpin' or log.action == 'bulk_unpin' %}
+                  Unpin
+                {% elif log.action == 'select_display' or log.action == 'bulk_select_display' %}
+                  Display On
+                {% elif log.action == 'unselect_display' or log.action == 'bulk_unselect_display' %}
+                  Display Off
+                {% elif log.action == 'reorder_display' %}
+                  Reorder Display
+                {% elif log.action == 'update_rotation_seconds' %}
+                  Update Rotation
+                {% elif log.action == 'update_display_limit' %}
+                  Update Display Limit
+                {% elif log.action == 'bulk_mark_sent' %}
+                  Mark Sent
+                {% elif log.action == 'bulk_mark_ignored' %}
+                  Mark Ignored
+                {% else %}
+                  {{ log.action }}
+                {% endif %}
+              </div>
             </div>
           </div>
           <div class="col-md-6">

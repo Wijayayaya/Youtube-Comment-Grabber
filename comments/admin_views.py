@@ -13,8 +13,10 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from django.contrib.auth import update_session_auth_hash
+from django.core.exceptions import PermissionDenied
+import uuid
 
-from .models import LiveStream, LiveChatMessage, ActivityLog
+from .models import LiveStream, LiveChatMessage, ActivityLog, CachedAvatar
 from .services.activity_log import log_activity
 
 
@@ -38,7 +40,7 @@ def admin_dashboard(request):
 	recent_messages = LiveChatMessage.objects.select_related('live_stream').order_by('-published_at')[:10]
 	
 	# Recent streams
-	recent_streams = LiveStream.objects.order_by('-created_at')[:5]
+	recent_streams = LiveStream.objects.exclude(video_id='manual').order_by('-created_at')[:5]
 	
 	context = {
 		'total_streams': total_streams,
@@ -62,7 +64,7 @@ def livestream_list(request):
 	search_query = request.GET.get('search', '')
 	is_active_filter = request.GET.get('is_active', '')
 	
-	streams = LiveStream.objects.all()
+	streams = LiveStream.objects.exclude(video_id='manual')
 	
 	if search_query:
 		streams = streams.filter(
@@ -215,6 +217,95 @@ def livechatmessage_list(request):
 	}
 	
 	return render(request, 'admin/livechatmessage_list.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def manual_message_create(request):
+	"""Staff-only manual message input for display."""
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	manual_stream, _created = LiveStream.objects.get_or_create(
+		video_id='manual',
+		defaults={
+			'title': 'Manual Input',
+			'is_active': False,
+			'display_rotation_seconds': 15,
+		},
+	)
+	latest_avatar = CachedAvatar.objects.order_by('-created_at').first()
+
+	context = {
+		'latest_avatar': latest_avatar,
+	}
+
+	if request.method == 'POST':
+		author_name = request.POST.get('author_name', '').strip()
+		message_text = request.POST.get('message_text', '').strip()
+		avatar_file = request.FILES.get('avatar_file')
+
+		context.update(
+			{
+				'author_name': author_name,
+				'message_text': message_text,
+				'has_avatar': bool(latest_avatar),
+			}
+		)
+
+		if not author_name or not message_text:
+			messages.error(request, 'Nama dan pesan wajib diisi.')
+			return render(request, 'admin/manual_message_form.html', context)
+
+		if not avatar_file and not latest_avatar:
+			messages.error(request, 'Avatar wajib diisi. Upload avatar terlebih dahulu.')
+			return render(request, 'admin/manual_message_form.html', context)
+
+		avatar_url = ''
+		new_avatar = None
+		if avatar_file:
+			# Keep old avatars - simpan avatar agar tetap tersimpan
+			avatar_label = avatar_file.name or f"manual-avatar-{uuid.uuid4().hex[:6]}"
+			if CachedAvatar.objects.filter(name=avatar_label).exists():
+				avatar_label = f"{avatar_label}-{uuid.uuid4().hex[:6]}"
+			new_avatar = CachedAvatar.objects.create(
+				name=avatar_label,
+				image=avatar_file,
+			)
+			avatar_url = new_avatar.image.url
+		elif latest_avatar:
+			avatar_url = latest_avatar.image.url
+
+		message = LiveChatMessage.objects.create(
+			live_stream=manual_stream,
+			message_id=f"manual-{uuid.uuid4()}",
+			author_name=author_name,
+			author_channel_id='',
+			author_profile_image_url=avatar_url,
+			message_text=message_text,
+			published_at=timezone.now(),
+			display_selected=True,
+			status=LiveChatMessage.Status.SENT,
+			sent_at=timezone.now(),
+		)
+
+		from .services.display_limit import enforce_display_limit
+		enforce_display_limit()
+
+		log_activity(
+			request,
+			'manual_message_create',
+			message=message,
+			livestream=manual_stream,
+			details={
+				'avatar_cached': bool(new_avatar),
+				'avatar_id': new_avatar.id if new_avatar else (latest_avatar.id if latest_avatar else None),
+			},
+		)
+
+		messages.success(request, 'Komentar manual berhasil ditambahkan ke display.')
+		return redirect('comments:admin-manual-message')
+
+	return render(request, 'admin/manual_message_form.html', context)
 
 
 @login_required(login_url='/admin/login/')

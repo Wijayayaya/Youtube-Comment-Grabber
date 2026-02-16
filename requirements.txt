@@ -5,4 +5,5 @@ google-auth-oauthlib
 python-dotenv
 gunicorn>=20.1
 whitenoise
+Pillow
 

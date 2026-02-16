@@ -19,6 +19,7 @@ urlpatterns = [
     path("admin/messages/", admin_views.livechatmessage_list, name="admin-livechatmessage-list"),
     path("admin/messages/<int:pk>/", admin_views.livechatmessage_detail, name="admin-livechatmessage-detail"),
     path("admin/messages/bulk-action/", admin_views.livechatmessage_bulk_action, name="admin-livechatmessage-bulk-action"),
+    path("admin/manual-message/", admin_views.manual_message_create, name="admin-manual-message"),
     
     # User Management Views
     path("admin/users/", admin_views.user_list, name="admin-user-list"),

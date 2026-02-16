@@ -81,6 +81,18 @@ class ManageableLiveChatMessage(LiveChatMessage):
 		verbose_name_plural = 'Manage live chat'
 
 
+class CachedAvatar(models.Model):
+	name = models.CharField(max_length=120, unique=True)
+	image = models.ImageField(upload_to='avatar_cache/')
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ['-created_at']
+
+	def __str__(self) -> str:
+		return self.name
+
+
 class ActivityLog(models.Model):
 	user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
 	action = models.CharField(max_length=64, db_index=True)

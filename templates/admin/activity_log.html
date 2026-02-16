@@ -90,6 +90,8 @@
                     <span class="badge bg-dark">Off</span>
                   {% elif log.action == 'reorder_display' %}
                     <span class="badge bg-primary">Reorder</span>
+                  {% elif log.action == 'manual_message_create' %}
+                    <span class="badge bg-primary">Manual Input</span>
                   {% elif log.action == 'update_rotation_seconds' %}
                     <span class="badge bg-info text-dark">Rotation</span>
                   {% elif log.action == 'update_display_limit' %}
