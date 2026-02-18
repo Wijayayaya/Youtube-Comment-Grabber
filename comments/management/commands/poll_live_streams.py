@@ -4,6 +4,7 @@ import time
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+import traceback
 
 from comments.models import LiveStream
 from comments.services.ingest import store_live_chat_items
@@ -43,7 +44,12 @@ class Command(BaseCommand):
 
 	def handle(self, *args, **options):
 		video_ids = options["video_ids"] or []
-		youtube = build_youtube_service()
+		try:
+			youtube = build_youtube_service()
+		except Exception:
+			self.stderr.write("Gagal inisialisasi YouTube client:")
+			self.stderr.write(traceback.format_exc())
+			raise
 		metadata_cache: dict[int, str] = {}
 
 		loop = options["loop"]
