@@ -234,15 +234,18 @@ def manual_message_create(request):
 		},
 	)
 	latest_avatar = CachedAvatar.objects.order_by('-created_at').first()
+	all_avatars = CachedAvatar.objects.order_by('-created_at')
 
 	context = {
 		'latest_avatar': latest_avatar,
+		'all_avatars': all_avatars,
 	}
 
 	if request.method == 'POST':
 		author_name = request.POST.get('author_name', '').strip()
 		message_text = request.POST.get('message_text', '').strip()
 		avatar_file = request.FILES.get('avatar_file')
+		selected_avatar_id = request.POST.get('selected_avatar_id', '').strip()
 
 		context.update(
 			{
@@ -256,23 +259,37 @@ def manual_message_create(request):
 			messages.error(request, 'Nama dan pesan wajib diisi.')
 			return render(request, 'admin/manual_message_form.html', context)
 
-		if not avatar_file and not latest_avatar:
+		if not avatar_file and not latest_avatar and not selected_avatar_id:
 			messages.error(request, 'Avatar wajib diisi. Upload avatar terlebih dahulu.')
 			return render(request, 'admin/manual_message_form.html', context)
 
 		avatar_url = ''
 		new_avatar = None
 		if avatar_file:
-			# Keep old avatars - simpan avatar agar tetap tersimpan
+			# Overwrite jika nama file sama — hemat disk
 			avatar_label = avatar_file.name or f"manual-avatar-{uuid.uuid4().hex[:6]}"
-			if CachedAvatar.objects.filter(name=avatar_label).exists():
-				avatar_label = f"{avatar_label}-{uuid.uuid4().hex[:6]}"
-			new_avatar = CachedAvatar.objects.create(
-				name=avatar_label,
-				image=avatar_file,
-			)
+			existing = CachedAvatar.objects.filter(name=avatar_label).first()
+			if existing:
+				if existing.image:
+					existing.image.delete(save=False)
+				existing.image = avatar_file
+				existing.save()
+				new_avatar = existing
+			else:
+				new_avatar = CachedAvatar.objects.create(
+					name=avatar_label,
+					image=avatar_file,
+				)
 			avatar_url = new_avatar.image.url
+		elif selected_avatar_id:
+			try:
+				new_avatar = CachedAvatar.objects.get(id=selected_avatar_id)
+				avatar_url = new_avatar.image.url
+			except CachedAvatar.DoesNotExist:
+				new_avatar = latest_avatar
+				avatar_url = latest_avatar.image.url if latest_avatar else ''
 		elif latest_avatar:
+			new_avatar = latest_avatar
 			avatar_url = latest_avatar.image.url
 
 		message = LiveChatMessage.objects.create(

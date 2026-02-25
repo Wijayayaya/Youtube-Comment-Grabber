@@ -37,6 +37,7 @@
       <div class="card-body">
         <form method="post" enctype="multipart/form-data" id="manual-message-form">
           {% csrf_token %}
+          <input type="hidden" id="selected-avatar-id" name="selected_avatar_id" value="">
 
           <div class="avatar-alert" id="avatar-alert">
             <i data-feather="alert-circle"></i>
@@ -45,7 +46,7 @@
 
           <div class="row g-4">
             <div class="col-md-4">
-              <div class="d-flex flex-column align-items-center justify-content-center h-75">
+              <div class="d-flex flex-column align-items-center justify-content-start gap-3">
                 <div class="avatar-uploader">
                   <label class="avatar-label" for="avatar-file">
                     {% if latest_avatar and latest_avatar.image %}
@@ -61,11 +62,26 @@
                     {% endif %}
                     <div class="avatar-overlay">
                       <i data-feather="camera"></i>
-                      <span>Upload</span>
+                      <span>Ganti</span>
                     </div>
                   </label>
-                  <input id="avatar-file" type="file" name="avatar_file" accept="image/*" class="d-none" {% if not latest_avatar or not latest_avatar.image %}required{% endif %}>
+                  <input id="avatar-file" type="file" name="avatar_file" accept="image/*" class="d-none" {% if not all_avatars %}required{% endif %}>
                 </div>
+                {% if all_avatars %}
+                <div class="avatar-gallery" id="avatar-gallery">
+                  <p class="avatar-gallery-label">Avatar tersimpan</p>
+                  <div class="avatar-gallery-grid">
+                    {% for avatar in all_avatars %}
+                    <div class="avatar-gallery-item {% if latest_avatar and avatar.id == latest_avatar.id %}active{% endif %}"
+                         data-id="{{ avatar.id }}"
+                         title="{{ avatar.name }}"
+                         onclick="selectCachedAvatar({{ avatar.id }}, '{{ avatar.image.url }}', this)">
+                      <img src="{{ avatar.image.url }}" alt="{{ avatar.name }}">
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
               </div>
             </div>
             <div class="col-md-8">
@@ -255,6 +271,58 @@
     height: 20px;
     flex-shrink: 0;
   }
+
+  /* Avatar gallery */
+  .avatar-gallery {
+    width: 180px;
+    text-align: center;
+  }
+
+  .avatar-gallery-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .avatar-gallery-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .avatar-gallery-item {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .avatar-gallery-item:hover {
+    border-color: rgba(59, 130, 246, 0.7);
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  .avatar-gallery-item.active {
+    border-color: #3b82f6;
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+
+  .avatar-gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 </style>
 {% endblock %}
 
@@ -290,21 +358,26 @@
       avatarInput.addEventListener('change', (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        
+
         const url = URL.createObjectURL(file);
-        
-        // Update preview
-        if (avatarPreview.tagName.toLowerCase() === 'img') {
-          avatarPreview.src = url;
+
+        // Always get fresh DOM reference (replaceWith makes old ref stale)
+        const currentPreview = document.getElementById('avatar-preview');
+        if (currentPreview.tagName.toLowerCase() === 'img') {
+          currentPreview.src = url;
         } else {
           const img = document.createElement('img');
           img.id = 'avatar-preview';
           img.className = 'avatar-preview';
           img.src = url;
           img.alt = 'Avatar';
-          avatarPreview.replaceWith(img);
+          currentPreview.replaceWith(img);
         }
-        
+
+        // Clear gallery selection — new upload takes priority
+        document.getElementById('selected-avatar-id').value = '';
+        document.querySelectorAll('.avatar-gallery-item').forEach(item => item.classList.remove('active'));
+
         hasAvatar = true;
         updateAvatarAlert();
       });
@@ -343,6 +416,35 @@
       messageText.addEventListener('paste', () => setTimeout(updateCharCount, 0));
       updateCharCount();
     }
+
+    // Select an avatar from the saved gallery
+    window.selectCachedAvatar = function(avatarId, avatarUrl, element) {
+      const currentPreview = document.getElementById('avatar-preview');
+      if (currentPreview.tagName.toLowerCase() === 'img') {
+        currentPreview.src = avatarUrl;
+      } else {
+        const img = document.createElement('img');
+        img.id = 'avatar-preview';
+        img.className = 'avatar-preview';
+        img.src = avatarUrl;
+        img.alt = 'Avatar';
+        currentPreview.replaceWith(img);
+      }
+
+      // Set hidden field so server knows which cached avatar to use
+      document.getElementById('selected-avatar-id').value = avatarId;
+
+      // Clear file input — gallery selection takes over
+      const fileInput = document.getElementById('avatar-file');
+      if (fileInput) fileInput.value = '';
+
+      // Update active highlight in gallery
+      document.querySelectorAll('.avatar-gallery-item').forEach(item => item.classList.remove('active'));
+      element.classList.add('active');
+
+      hasAvatar = true;
+      updateAvatarAlert();
+    };
   });
 </script>
 {% endblock %}
