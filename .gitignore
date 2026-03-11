@@ -75,6 +75,7 @@ client_secrets_*.json
 # obs-websocket temporary or token files (if any)
 youtube_token.json
 obs_token.json
+media/avatar_cache/
 
 # VS Code, PyCharm, IDEs
 .vscode/

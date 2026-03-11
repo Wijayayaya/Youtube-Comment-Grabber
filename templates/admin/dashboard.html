@@ -162,7 +162,7 @@
                   {% endif %}
                 </td>
                 <td><strong>{{ message.author_name }}</strong></td>
-                <td>{{ message.message_text|truncatewords:10 }}</td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ message.message_text|truncatechars:100 }}</td>
                 <td>{{ message.live_stream.title|default:message.live_stream.video_id }}</td>
                 <td>
                   <span class="badge 

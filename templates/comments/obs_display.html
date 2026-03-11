@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -99,14 +99,13 @@
       text-overflow: ellipsis;
       margin-top: -4px;
       /* sedikit naikkan posisi author */
+      transition: opacity 0.2s ease;
     }
 
     .message {
       font-size: 1.15rem;
       /* sedikit lebih kecil agar muat 100ch */
       line-height: 1.3;
-      max-height: 54px;
-      /* 2 baris */
       overflow: hidden;
       overflow-wrap: anywhere;
       word-break: break-word;
@@ -114,6 +113,7 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       color: #000000;
+      transition: opacity 0.2s ease, font-size 0.15s ease;
     }
 
     .message::-webkit-scrollbar {
@@ -195,8 +195,8 @@
       const author = document.getElementById("author");
       const messageEl = document.getElementById("message");
 
-      // Polling setiap 3 detik untuk cek perubahan data
       const POLL_INTERVAL = 3000;
+      const FADE = 200; // ms
 
       async function load() {
         try {
@@ -217,16 +217,14 @@
             currentSignature = newSignature;
 
             if (idsChanged) {
-              console.log('Messages or order updated. Restarting from first message.');
               // Reset index ke 0 dan langsung tampilkan
               idx = 0;
-              
               // Clear timer yang lagi jalan dan langsung show message pertama
               if (displayTimer) {
                 clearTimeout(displayTimer);
                 displayTimer = null;
               }
-              
+
               if (messages.length > 0) {
                 show();
               }
@@ -262,16 +260,36 @@
       }
 
       function show() {
-        // Reset timer variable so load() can detect if we need to restart
         displayTimer = null;
-
         if (!messages.length) return;
 
         const m = messages[idx % messages.length];
         currentMessageId = m.id;
-        author.textContent = m.author_name || "";
-        messageEl.textContent = m.text || "";
-        avatar.src = m.author_profile_image_url || "";
+
+        // Fade out text
+        author.style.opacity = "0";
+        messageEl.style.opacity = "0";
+
+        setTimeout(() => {
+          author.textContent = m.author_name || "";
+          const text = m.text || "";
+          messageEl.textContent = text;
+          avatar.src = m.author_profile_image_url || "";
+
+          // Adaptive font: max 1.04rem (batas fisik card 100px), turun 0.04rem per 10 chars
+          let fontSize;
+          if      (text.length <= 200) fontSize = "1.24rem";
+          else if (text.length <= 210) fontSize = "1.18rem";
+          else if (text.length <= 220) fontSize = "1.13rem";
+          else if (text.length <= 230) fontSize = "1.08rem";
+          else if (text.length <= 240) fontSize = "1.04rem";
+          else                         fontSize = "1.00rem"; // 241-250
+          messageEl.style.fontSize = fontSize;
+
+          // Fade in text
+          author.style.opacity = "1";
+          messageEl.style.opacity = "1";
+        }, FADE);
 
         const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 15;
         const delay = rotation * 1000;

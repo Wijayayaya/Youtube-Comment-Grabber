@@ -267,8 +267,8 @@
                     </span>
                     {% endif %}
                   </td>
-                  <td>{{ message.message_text|truncatewords:15 }}</td>
-                  <td><small>{{ message.live_stream.title|default:message.live_stream.video_id }}</small></td>
+                  <td style="max-width:450px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ message.message_text|truncatechars:150 }}</td>
+                  <td style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><small>{{ message.live_stream.title|default:message.live_stream.video_id }}</small></td>
                   <td>
                     {% if message.display_selected %}
                     <button type="button" class="btn btn-sm btn-success"
