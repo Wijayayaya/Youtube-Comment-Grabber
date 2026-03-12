@@ -172,6 +172,9 @@ def livechatmessage_list(request):
 	display_filter = request.GET.get('display', '')
 	start_date = request.GET.get('start_date', '')
 	end_date = request.GET.get('end_date', '')
+
+	from .services.display_limit import enforce_display_message_length
+	enforce_display_message_length(max_length=200)
 	
 	messages_qs = LiveChatMessage.objects.select_related('live_stream').all()
 	
@@ -259,6 +262,10 @@ def manual_message_create(request):
 			messages.error(request, 'Nama dan pesan wajib diisi.')
 			return render(request, 'admin/manual_message_form.html', context)
 
+		if len(message_text) > 200:
+			messages.error(request, 'Pesan maksimal 200 karakter.')
+			return render(request, 'admin/manual_message_form.html', context)
+
 		if not avatar_file and not latest_avatar and not selected_avatar_id:
 			messages.error(request, 'Avatar wajib diisi. Upload avatar terlebih dahulu.')
 			return render(request, 'admin/manual_message_form.html', context)
@@ -329,15 +336,43 @@ def manual_message_create(request):
 def livechatmessage_detail(request, pk):
 	"""View/Edit live chat message detail."""
 	message = get_object_or_404(LiveChatMessage.objects.select_related('live_stream'), pk=pk)
+	is_manual_message = (
+		message.live_stream.video_id == 'manual'
+		or (message.message_id or '').startswith('manual-')
+	)
 	
 	if request.method == 'POST':
-		print(f"DEBUG: Received POST for message {pk}: {request.POST}")
+		def reject_update(error_text: str):
+			if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+				return JsonResponse({'status': 'error', 'message': error_text}, status=400)
+			messages.error(request, error_text)
+			return redirect('comments:admin-livechatmessage-detail', pk=message.pk)
+
 		updated_fields = ['updated_at']
 		message.updated_at = timezone.now()
 		previous_display_selected = message.display_selected
 		previous_is_pinned = message.is_pinned
+		previous_message_text = message.message_text
 		display_changed = False
 		pin_changed = False
+		text_changed = False
+		removed_by_limit_ids = []
+
+		# handle manual message text edit
+		if 'message_text' in request.POST:
+			if not is_manual_message:
+				return reject_update('Hanya pesan manual yang bisa diedit.')
+
+			edited_text = request.POST.get('message_text', '').strip()
+			if not edited_text:
+				return reject_update('Pesan manual tidak boleh kosong.')
+			if len(edited_text) > 200:
+				return reject_update('Pesan maksimal 200 karakter.')
+
+			if edited_text != message.message_text:
+				message.message_text = edited_text
+				updated_fields.append('message_text')
+				text_changed = True
 		
 		# Update only fields present in POST (essential for AJAX partial updates)
 		if 'note' in request.POST:
@@ -346,9 +381,12 @@ def livechatmessage_detail(request, pk):
 		
 		# handle display_selected
 		if 'display_selected' in request.POST:
-			message.display_selected = request.POST.get('display_selected') == 'on'
+			requested_display_selected = request.POST.get('display_selected') == 'on'
+			if requested_display_selected and len((message.message_text or '')) > 200:
+				return reject_update('Pesan lebih dari 200 karakter. Silakan edit dulu sebelum ditampilkan di OBS.')
+
+			message.display_selected = requested_display_selected
 			updated_fields.append('display_selected')
-			print(f"DEBUG: Updating display_selected to {message.display_selected}")
 			display_changed = message.display_selected != previous_display_selected
 			
 			if message.display_selected and not previous_display_selected:
@@ -359,24 +397,25 @@ def livechatmessage_detail(request, pk):
 		
 		# handle is_pinned
 		if 'is_pinned' in request.POST:
-			message.is_pinned = request.POST.get('is_pinned') == 'on'
+			requested_is_pinned = request.POST.get('is_pinned') == 'on'
+			if requested_is_pinned and len((message.message_text or '')) > 200:
+				return reject_update('Pesan lebih dari 200 karakter tidak bisa dipin di OBS.')
+
+			message.is_pinned = requested_is_pinned
 			updated_fields.append('is_pinned')
-			print(f"DEBUG: Updating is_pinned to {message.is_pinned}")
 			pin_changed = message.is_pinned != previous_is_pinned
 		
 		# Use update_fields to prevent overwriting other fields (e.g. from background polling)
-		print(f"DEBUG: Saving fields: {updated_fields}")
-		message.save(update_fields=updated_fields)
+		message.save(update_fields=list(dict.fromkeys(updated_fields)))
 		
 		# Enforce display limit if message was newly selected
-		removed_by_limit_ids = []
 		if 'display_selected' in request.POST and message.display_selected and not previous_display_selected:
-			from .services.display_limit import enforce_display_limit
+			from .services.display_limit import enforce_display_limit, enforce_display_message_length
+			enforce_display_message_length(max_length=200)
 			removed_by_limit_ids = enforce_display_limit()
 
 		# Verify save
 		message.refresh_from_db()
-		print(f"DEBUG: Verified after save - Pinned: {message.is_pinned}, Display: {message.display_selected}")
 
 		if display_changed:
 			action = 'select_display' if message.display_selected else 'unselect_display'
@@ -397,6 +436,19 @@ def livechatmessage_detail(request, pk):
 				livestream=message.live_stream,
 				details={'source': 'single'},
 			)
+
+		if text_changed:
+			log_activity(
+				request,
+				'manual_message_edit',
+				message=message,
+				livestream=message.live_stream,
+				details={
+					'source': 'detail',
+					'previous_length': len(previous_message_text or ''),
+					'new_length': len(message.message_text or ''),
+				},
+			)
 		
 		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
 			return JsonResponse({
@@ -413,6 +465,7 @@ def livechatmessage_detail(request, pk):
 	
 	context = {
 		'message': message,
+		'is_manual_message': is_manual_message,
 	}
 	return render(request, 'admin/livechatmessage_detail.html', context)
 
@@ -453,13 +506,37 @@ def livechatmessage_bulk_action(request):
 			base_details['messages'] = snapshots[:3]
 	
 	if action == 'mark_display':
-		messages_qs.update(display_selected=True)
-		from .services.display_limit import enforce_display_limit
-		removed_ids = enforce_display_limit()
+		eligible_ids = []
+		blocked_over_200_ids = []
+		for msg in messages_qs.only('id', 'message_text'):
+			if len((msg.message_text or '')) > 200:
+				blocked_over_200_ids.append(msg.id)
+			else:
+				eligible_ids.append(msg.id)
+
+		selected_count = 0
+		removed_ids = []
+		if eligible_ids:
+			selected_count = LiveChatMessage.objects.filter(id__in=eligible_ids).update(display_selected=True)
+			from .services.display_limit import enforce_display_limit, enforce_display_message_length
+			enforce_display_message_length(max_length=200)
+			removed_ids = enforce_display_limit()
+
 		if removed_ids:
 			messages.info(request, f'{len(removed_ids)} oldest message(s) removed from display due to limit.')
-		messages.add_message(request, messages.SUCCESS, f'{count} message(s) marked for display.', extra_tags='success')
-		details = {**base_details, 'removed_ids': removed_ids}
+		if blocked_over_200_ids:
+			messages.warning(request, f'{len(blocked_over_200_ids)} message(s) over 200 characters were not selected for OBS.')
+		if selected_count:
+			messages.add_message(request, messages.SUCCESS, f'{selected_count} message(s) marked for display.', extra_tags='success')
+		else:
+			messages.warning(request, 'No eligible messages to mark for display (max 200 characters).')
+
+		details = {
+			**base_details,
+			'removed_ids': removed_ids,
+			'blocked_over_200_ids': blocked_over_200_ids,
+			'selected_count': selected_count,
+		}
 		log_activity(request, 'bulk_select_display', details=details)
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)

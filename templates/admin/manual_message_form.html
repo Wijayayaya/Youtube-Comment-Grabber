@@ -92,10 +92,10 @@
 
               <div class="mb-3">
                 <label class="form-label fw-bold small text-uppercase text-muted">Pesan</label>
-                <textarea id="message-text" name="message_text" class="form-control" rows="5" placeholder="Tulis komentar" maxlength="250" required>{{ message_text|default:'' }}</textarea>
+                <textarea id="message-text" name="message_text" class="form-control" rows="5" placeholder="Tulis komentar" maxlength="200" required>{{ message_text|default:'' }}</textarea>
                 <div class="character-counter-wrapper">
-                  <span class="text-muted small">Max 250 karakter</span>
-                  <span id="char-count" class="character-counter">0/250</span>
+                  <span class="text-muted small">Max 200 karakter</span>
+                  <span id="char-count" class="character-counter">0/200</span>
                 </div>
               </div>
 
@@ -399,11 +399,11 @@
     function updateCharCount() {
       if (!messageText) return;
       const count = messageText.value.length;
-      charCount.textContent = `${count}/250`;
+      charCount.textContent = `${count}/200`;
       
-      if (count <= 150) {
+      if (count <= 120) {
         charCount.classList.remove('warning', 'danger');
-      } else if (count <= 200) {
+      } else if (count <= 180) {
         charCount.classList.remove('danger');
         charCount.classList.add('warning');
       } else {

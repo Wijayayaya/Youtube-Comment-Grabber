@@ -92,6 +92,8 @@
                     <span class="badge bg-primary">Reorder</span>
                   {% elif log.action == 'manual_message_create' %}
                     <span class="badge bg-primary">Manual Input</span>
+                  {% elif log.action == 'manual_message_edit' %}
+                    <span class="badge bg-info text-dark">Manual Edit</span>
                   {% elif log.action == 'update_rotation_seconds' %}
                     <span class="badge bg-info text-dark">Rotation</span>
                   {% elif log.action == 'update_display_limit' %}

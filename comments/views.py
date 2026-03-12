@@ -54,6 +54,9 @@ def manage_display(request):
 def manage_messages_api(request):
 	"""Return all messages marked for display (admin-only)."""
 	from .models import LiveChatMessage
+	from .services.display_limit import enforce_display_message_length
+
+	enforce_display_message_length(max_length=200)
 
 	queryset = (
 		LiveChatMessage.objects.filter(display_selected=True)
@@ -67,7 +70,7 @@ def manage_messages_api(request):
 			'message_id': m.message_id,
 			'author': m.author_name,
 			'author_profile_image_url': m.author_profile_image_url or None,
-			'text': m.message_text,
+			'text': (m.message_text or '')[:200],
 			'display_order': m.display_order,
 			'video_id': m.live_stream.video_id,
 			'live_stream_title': m.live_stream.title,
@@ -198,6 +201,9 @@ def update_display_limit_api(request):
 class DisplayMessagesApiView(View):
 	"""Public API returning messages marked for public display."""
 	def get(self, request):
+		from .services.display_limit import enforce_display_message_length
+		enforce_display_message_length(max_length=200)
+
 		queryset = (
 			LiveChatMessage.objects.filter(display_selected=True)
 			.select_related('live_stream')
@@ -215,7 +221,7 @@ class DisplayMessagesApiView(View):
 				'id': m.id,
 				'author_name': m.author_name,
 				'author_profile_image_url': m.author_profile_image_url or None,
-				'text': m.message_text,
+				'text': (m.message_text or '')[:200],
 				'rotation_seconds': m.live_stream.display_rotation_seconds,
 			}
 			for m in queryset

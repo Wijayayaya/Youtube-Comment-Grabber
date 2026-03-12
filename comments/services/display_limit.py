@@ -1,8 +1,32 @@
 from __future__ import annotations
 
+from django.db.models.functions import Length
 from django.utils import timezone
 
 from ..models import LiveChatMessage, LiveStream
+
+
+def enforce_display_message_length(max_length: int = 200) -> list[int]:
+	"""Unselect messages exceeding the max OBS message length.
+
+	Returns list of message IDs that were unselected.
+	"""
+	over_limit_ids = list(
+		LiveChatMessage.objects.filter(display_selected=True)
+		.annotate(message_length=Length("message_text"))
+		.filter(message_length__gt=max_length)
+		.values_list("id", flat=True)
+	)
+	if not over_limit_ids:
+		return []
+
+	LiveChatMessage.objects.filter(id__in=over_limit_ids).update(
+		display_selected=False,
+		is_pinned=False,
+		display_order=None,
+		updated_at=timezone.now(),
+	)
+	return over_limit_ids
 
 
 def enforce_display_limit(limit: int | None = None) -> list[int]:

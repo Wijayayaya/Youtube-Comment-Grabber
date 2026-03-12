@@ -6,6 +6,9 @@ from django.utils.dateparse import parse_datetime
 from comments.models import LiveChatMessage, LiveStream
 
 
+MAX_MESSAGE_LENGTH = 200
+
+
 def store_live_chat_items(live_stream: LiveStream, items) -> int:
 	saved = 0
 	for item in items:
@@ -17,7 +20,7 @@ def store_live_chat_items(live_stream: LiveStream, items) -> int:
 			"author_profile_image_url": author_details.get("profileImageUrl", ""),
 			"author_name": author_details.get("displayName", ""),
 			"author_channel_id": author_details.get("channelId", ""),
-			"message_text": snippet.get("displayMessage", ""),
+			"message_text": (snippet.get("displayMessage", "") or "")[:MAX_MESSAGE_LENGTH],
 			"published_at": published_at,
 			"raw_payload": item,
 		}

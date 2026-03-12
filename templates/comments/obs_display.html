@@ -87,7 +87,7 @@
       width: 125ch;
       /* target ~125 karakter per baris */
       max-width: 125ch;
-      /* pastikan 2 baris ~250 karakter penuh */
+      /* pastikan 2 baris ~200 karakter penuh */
     }
 
     .author {
@@ -107,9 +107,11 @@
       /* sedikit lebih kecil agar muat 100ch */
       line-height: 1.3;
       overflow: hidden;
+      text-overflow: ellipsis;
       overflow-wrap: anywhere;
       word-break: break-word;
       display: -webkit-box;
+      line-clamp: 2;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       color: #000000;
@@ -194,9 +196,53 @@
       const avatar = document.getElementById("avatar");
       const author = document.getElementById("author");
       const messageEl = document.getElementById("message");
+      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
+      // Offscreen element untuk hitung tinggi teks aktual
+      const measureEl = document.createElement("div");
+      measureEl.style.position = "absolute";
+      measureEl.style.left = "-99999px";
+      measureEl.style.top = "0";
+      measureEl.style.visibility = "hidden";
+      measureEl.style.pointerEvents = "none";
+      measureEl.style.whiteSpace = "normal";
+      measureEl.style.overflowWrap = "anywhere";
+      measureEl.style.wordBreak = "break-word";
+      measureEl.style.lineHeight = "1.3";
+      measureEl.style.fontFamily = getComputedStyle(messageEl).fontFamily;
+      measureEl.style.fontWeight = getComputedStyle(messageEl).fontWeight;
+      document.body.appendChild(measureEl);
 
       const POLL_INTERVAL = 3000;
       const FADE = 200; // ms
+
+      function fitMessageFont(text) {
+        const content = text || "";
+        const width = messageEl.clientWidth;
+        if (!width || !content) {
+          messageEl.style.fontSize = "1.15rem";
+          return;
+        }
+
+        const maxFont = 1.24;
+        const minFont = 0.96;
+        const step = 0.02;
+
+        measureEl.style.width = `${width}px`;
+        measureEl.textContent = content;
+
+        let bestSize = minFont;
+        for (let fontSize = maxFont; fontSize >= minFont; fontSize -= step) {
+          measureEl.style.fontSize = `${fontSize.toFixed(2)}rem`;
+          const maxHeight = remPx * fontSize * 1.3 * 2;
+          if (measureEl.offsetHeight <= maxHeight + 0.5) {
+            bestSize = fontSize;
+            break;
+          }
+        }
+
+        messageEl.style.fontSize = `${bestSize.toFixed(2)}rem`;
+      }
 
       async function load() {
         try {
@@ -276,19 +322,12 @@
           messageEl.textContent = text;
           avatar.src = m.author_profile_image_url || "";
 
-          // Adaptive font: max 1.04rem (batas fisik card 100px), turun 0.04rem per 10 chars
-          let fontSize;
-          if      (text.length <= 200) fontSize = "1.24rem";
-          else if (text.length <= 210) fontSize = "1.18rem";
-          else if (text.length <= 220) fontSize = "1.13rem";
-          else if (text.length <= 230) fontSize = "1.08rem";
-          else if (text.length <= 240) fontSize = "1.04rem";
-          else                         fontSize = "1.00rem"; // 241-250
-          messageEl.style.fontSize = fontSize;
+          // Hitung otomatis agar 200 karakter tetap aman di card
+          fitMessageFont(text);
 
           // Fade in text
           author.style.opacity = "1";
-          messageEl.style.opacity = "1";
+             messageEl.style.opacity = "1";
         }, FADE);
 
         const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 15;

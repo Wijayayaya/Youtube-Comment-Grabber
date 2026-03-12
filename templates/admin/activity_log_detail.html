@@ -62,6 +62,8 @@
               <div class="fw-semibold">
                 {% if log.action == 'manual_message_create' %}
                   Manual Input
+                {% elif log.action == 'manual_message_edit' %}
+                  Manual Edit
                 {% elif log.action == 'bulk_delete' or log.action == 'delete' %}
                   Delete
                 {% elif log.action == 'pin' or log.action == 'bulk_pin' %}

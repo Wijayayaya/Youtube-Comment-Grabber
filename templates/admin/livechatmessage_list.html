@@ -49,6 +49,26 @@
   </div>
 </div>
 
+<!-- Warning Modal -->
+<div class="modal fade" id="warningModal" tabindex="-1" aria-labelledby="warningModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title" id="warningModalLabel">
+          <i class="feather icon-alert-triangle text-warning"></i> Peringatan
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="warningModalMessage">Pesan tidak valid.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- [ breadcrumb ] start -->
 <div class="page-header">
   <div class="page-block">
@@ -244,7 +264,7 @@
               </thead>
               <tbody>
                 {% for message in page_obj %}
-                <tr>
+                <tr data-message-length="{{ message.message_text|length }}">
                   <td>
                     <input type="checkbox" name="message_ids" value="{{ message.id }}" class="message-checkbox">
                   </td>
@@ -272,12 +292,12 @@
                   <td>
                     {% if message.display_selected %}
                     <button type="button" class="btn btn-sm btn-success"
-                      onclick="toggleDisplay({{ message.pk }}, false, event)" title="Click to remove from display">
+                      onclick="toggleDisplay({{ message.pk }}, false, {{ message.message_text|length }}, event)" title="Click to remove from display">
                       <i class="feather icon-eye"></i> On
                     </button>
                     {% else %}
                     <button type="button" class="btn btn-sm btn-secondary"
-                      onclick="toggleDisplay({{ message.pk }}, true, event)" title="Click to add to display">
+                      onclick="toggleDisplay({{ message.pk }}, true, {{ message.message_text|length }}, event)" title="Click to add to display">
                       <i class="feather icon-eye-off"></i> Off
                     </button>
                     {% endif %}
@@ -507,13 +527,18 @@
   setInterval(checkForUpdates, AUTO_UPDATE_INTERVAL);
 
   // Toggle display for individual message (AJAX - no page reload)
-  function toggleDisplay(messageId, setToDisplay, event) {
+  function toggleDisplay(messageId, setToDisplay, messageLength, event) {
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
     // Get the button element (even if user clicked the icon inside)
     let button = event.target;
     if (button.tagName === 'I') {
       button = button.closest('button');
+    }
+
+    if (setToDisplay && Number(messageLength) > 200) {
+      showWarningModal('Pesan ini lebih dari 200 karakter, jadi tidak bisa ditampilkan. Silakan edit dulu.');
+      return;
     }
 
     // Disable button during request
@@ -535,9 +560,9 @@
         if (data.status === 'success') {
           // Use data from server to update UI
           if (data.display_selected) {
-            button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false, event)" title="Click to remove from display"><i class="feather icon-eye"></i> On</button>`;
+            button.outerHTML = `<button type="button" class="btn btn-success btn-sm" onclick="toggleDisplay(${messageId}, false, ${messageLength}, event)" title="Click to remove from display"><i class="feather icon-eye"></i> On</button>`;
           } else {
-            button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
+            button.outerHTML = `<button type="button" class="btn btn-secondary btn-sm" onclick="toggleDisplay(${messageId}, true, ${messageLength}, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
           }
 
           if (data.display_limit_removed && data.display_limit_removed > 0) {
@@ -548,7 +573,8 @@
               if (!row) return;
               const displayButton = row.querySelector('button[onclick*="toggleDisplay"]');
               if (displayButton) {
-                displayButton.outerHTML = `<button type="button" class="btn btn-sm btn-secondary" onclick="toggleDisplay(${id}, true, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
+                const rowMessageLength = Number(row.dataset.messageLength || 0);
+                displayButton.outerHTML = `<button type="button" class="btn btn-sm btn-secondary" onclick="toggleDisplay(${id}, true, ${rowMessageLength}, event)" title="Click to add to display"><i class="feather icon-eye-off"></i> Off</button>`;
               }
             });
             
@@ -699,6 +725,16 @@
       return;
     }
 
+    const overLimitChecked = Array.from(checkedBoxes).filter((checkbox) => {
+      const row = checkbox.closest('tr');
+      return Number(row?.dataset.messageLength || 0) > 200;
+    });
+
+    if (overLimitChecked.length > 0) {
+      showWarningModal(`${overLimitChecked.length} pesan lebih dari 200 karakter dan tidak bisa dipilih untuk OBS. Edit dulu pesan tersebut.`);
+      return;
+    }
+
     showConfirmModal(`Add ${checkedBoxes.length} message(s) to display?`, () => {
       actionSelect.value = 'mark_display';
       form.submit();
@@ -758,6 +794,17 @@
     modal.show();
   }
 
+  function showWarningModal(message) {
+    const modalEl = document.getElementById('warningModal');
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    const messageEl = document.getElementById('warningModalMessage');
+    if (messageEl) messageEl.textContent = message;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     const confirmBtn = document.getElementById('confirmActionBtn');
     if (confirmBtn) {
@@ -779,6 +826,19 @@
         const actionSelect = bulkForm.querySelector('select[name="action"]');
         const actionValue = actionSelect ? actionSelect.value : '';
         if (!actionValue) return;
+
+        if (actionValue === 'mark_display') {
+          const checkedBoxes = document.querySelectorAll('.message-checkbox:checked');
+          const overLimitChecked = Array.from(checkedBoxes).filter((checkbox) => {
+            const row = checkbox.closest('tr');
+            return Number(row?.dataset.messageLength || 0) > 200;
+          });
+          if (overLimitChecked.length > 0) {
+            e.preventDefault();
+            showWarningModal(`${overLimitChecked.length} pesan lebih dari 200 karakter dan tidak bisa dipilih untuk OBS. Edit dulu pesan tersebut.`);
+            return;
+          }
+        }
 
         const selectedOption = actionSelect.options[actionSelect.selectedIndex];
         const actionLabel = selectedOption ? selectedOption.text.trim() : 'this action';
