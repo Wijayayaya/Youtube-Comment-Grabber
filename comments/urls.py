@@ -20,6 +20,8 @@ urlpatterns = [
     path("admin/messages/<int:pk>/", admin_views.livechatmessage_detail, name="admin-livechatmessage-detail"),
     path("admin/messages/bulk-action/", admin_views.livechatmessage_bulk_action, name="admin-livechatmessage-bulk-action"),
     path("admin/manual-message/", admin_views.manual_message_create, name="admin-manual-message"),
+    path("admin/manual-message/avatar/<int:avatar_id>/usage/", admin_views.cached_avatar_usage, name="admin-cached-avatar-usage"),
+    path("admin/manual-message/avatar/<int:avatar_id>/delete/", admin_views.cached_avatar_delete, name="admin-cached-avatar-delete"),
     
     # User Management Views
     path("admin/users/", admin_views.user_list, name="admin-user-list"),

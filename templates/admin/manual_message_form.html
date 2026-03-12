@@ -37,7 +37,7 @@
       <div class="card-body">
         <form method="post" enctype="multipart/form-data" id="manual-message-form">
           {% csrf_token %}
-          <input type="hidden" id="selected-avatar-id" name="selected_avatar_id" value="">
+          <input type="hidden" id="selected-avatar-id" name="selected_avatar_id" value="{% if latest_avatar %}{{ latest_avatar.id }}{% endif %}">
 
           <div class="avatar-alert" id="avatar-alert">
             <i data-feather="alert-circle"></i>
@@ -73,9 +73,11 @@
                   <div class="avatar-gallery-grid">
                     {% for avatar in all_avatars %}
                     <div class="avatar-gallery-item {% if latest_avatar and avatar.id == latest_avatar.id %}active{% endif %}"
-                         data-id="{{ avatar.id }}"
+                         data-avatar-id="{{ avatar.id }}"
+                         data-avatar-url="{{ avatar.image.url }}"
+                         data-avatar-name="{{ avatar.name }}"
                          title="{{ avatar.name }}"
-                         onclick="selectCachedAvatar({{ avatar.id }}, '{{ avatar.image.url }}', this)">
+                         onclick="openAvatarAction(this)">
                       <img src="{{ avatar.image.url }}" alt="{{ avatar.name }}">
                     </div>
                     {% endfor %}
@@ -107,6 +109,47 @@
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="avatarActionModal" tabindex="-1" aria-labelledby="avatarActionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="avatarActionModalLabel">Aksi Avatar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="avatar-action-preview" src="" alt="Avatar" class="rounded-circle border" style="width: 88px; height: 88px; object-fit: cover;">
+        <p id="avatar-action-name" class="mb-0 mt-3 fw-semibold"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" id="avatar-delete-open-btn">Delete</button>
+        <button type="button" class="btn btn-primary" id="avatar-select-btn">Pilih</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="avatarDeleteWarningModal" tabindex="-1" aria-labelledby="avatarDeleteWarningModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger" id="avatarDeleteWarningModalLabel">
+          <i class="feather icon-alert-triangle me-1"></i> Konfirmasi Hapus Avatar
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="avatar-delete-warning-text" class="mb-2"></p>
+        <ul id="avatar-delete-message-list" class="list-group avatar-delete-message-list"></ul>
+        <p id="avatar-delete-more-info" class="text-muted small mb-0 mt-2"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-danger" id="avatar-delete-confirm-btn">Ya, Hapus Avatar</button>
       </div>
     </div>
   </div>
@@ -323,6 +366,17 @@
     height: 100%;
     object-fit: cover;
   }
+
+  .avatar-delete-message-list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .avatar-delete-message-list .list-group-item {
+    font-size: 13px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
 </style>
 {% endblock %}
 
@@ -330,20 +384,86 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const avatarInput = document.getElementById('avatar-file');
-    const avatarPreview = document.getElementById('avatar-preview');
     const messageText = document.getElementById('message-text');
     const charCount = document.getElementById('char-count');
     const formEl = document.getElementById('manual-message-form');
     const avatarAlert = document.getElementById('avatar-alert');
+    const selectedAvatarInput = document.getElementById('selected-avatar-id');
+    const avatarGallery = document.getElementById('avatar-gallery');
+
+    const avatarActionModalEl = document.getElementById('avatarActionModal');
+    const avatarDeleteWarningModalEl = document.getElementById('avatarDeleteWarningModal');
+    const avatarActionPreview = document.getElementById('avatar-action-preview');
+    const avatarActionName = document.getElementById('avatar-action-name');
+    const avatarSelectBtn = document.getElementById('avatar-select-btn');
+    const avatarDeleteOpenBtn = document.getElementById('avatar-delete-open-btn');
+    const avatarDeleteWarningText = document.getElementById('avatar-delete-warning-text');
+    const avatarDeleteMessageList = document.getElementById('avatar-delete-message-list');
+    const avatarDeleteMoreInfo = document.getElementById('avatar-delete-more-info');
+    const avatarDeleteConfirmBtn = document.getElementById('avatar-delete-confirm-btn');
+
+    const avatarUsageUrlTemplate = "{% url 'comments:admin-cached-avatar-usage' 0 %}";
+    const avatarDeleteUrlTemplate = "{% url 'comments:admin-cached-avatar-delete' 0 %}";
+
+    function attachModalToBody(modalEl) {
+      if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+      }
+    }
+
+    function cleanupModalBackdrop(force = false) {
+      const openModalCount = document.querySelectorAll('.modal.show').length;
+      if (!force && openModalCount > 0) {
+        return;
+      }
+      document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('padding-right');
+    }
+
+    attachModalToBody(avatarActionModalEl);
+    attachModalToBody(avatarDeleteWarningModalEl);
+
+    const actionModal = (typeof bootstrap !== 'undefined' && avatarActionModalEl)
+      ? new bootstrap.Modal(avatarActionModalEl)
+      : null;
+    const deleteWarningModal = (typeof bootstrap !== 'undefined' && avatarDeleteWarningModalEl)
+      ? new bootstrap.Modal(avatarDeleteWarningModalEl)
+      : null;
+
+    const initialActiveAvatarId = {% if latest_avatar %}{{ latest_avatar.id }}{% else %}null{% endif %};
+    let activeAvatarId = initialActiveAvatarId;
+    let pendingAvatar = null;
+    let showDeleteAfterActionHidden = false;
     let hasAvatar = {% if latest_avatar %} true {% else %} false {% endif %};
 
-    // Initialize feather icons
     if (typeof feather !== 'undefined') {
       feather.replace();
     }
 
-    // Show/hide avatar alert
+    if (avatarActionModalEl) {
+      avatarActionModalEl.addEventListener('hidden.bs.modal', function() {
+        if (showDeleteAfterActionHidden) {
+          showDeleteAfterActionHidden = false;
+          setTimeout(() => {
+            if (deleteWarningModal) {
+              deleteWarningModal.show();
+            }
+          }, 80);
+          return;
+        }
+        cleanupModalBackdrop();
+      });
+    }
+
+    if (avatarDeleteWarningModalEl) {
+      avatarDeleteWarningModalEl.addEventListener('hidden.bs.modal', function() {
+        cleanupModalBackdrop();
+      });
+    }
+
     function updateAvatarAlert() {
+      if (!avatarAlert) return;
       if (hasAvatar) {
         avatarAlert.classList.remove('show');
       } else {
@@ -351,51 +471,298 @@
       }
     }
 
+    function buildAvatarEndpoint(template, avatarId) {
+      return template.replace('/0/', `/${avatarId}/`);
+    }
+
+    function renderAvatarImage(avatarUrl) {
+      const currentPreview = document.getElementById('avatar-preview');
+      if (!currentPreview) return;
+      if (currentPreview.tagName.toLowerCase() === 'img') {
+        currentPreview.src = avatarUrl;
+      } else {
+        const img = document.createElement('img');
+        img.id = 'avatar-preview';
+        img.className = 'avatar-preview';
+        img.src = avatarUrl;
+        img.alt = 'Avatar';
+        currentPreview.replaceWith(img);
+      }
+    }
+
+    function renderAvatarPlaceholder() {
+      const currentPreview = document.getElementById('avatar-preview');
+      if (!currentPreview || currentPreview.classList.contains('avatar-placeholder')) {
+        return;
+      }
+
+      const placeholder = document.createElement('div');
+      placeholder.id = 'avatar-preview';
+      placeholder.className = 'avatar-preview avatar-placeholder';
+      placeholder.innerHTML = `
+        <div class="avatar-placeholder-inner">
+          <div class="avatar-placeholder-icon">⬆️</div>
+          <div class="avatar-placeholder-title">Upload Avatar</div>
+          <div class="avatar-placeholder-subtitle">Klik untuk pilih</div>
+        </div>
+      `;
+      currentPreview.replaceWith(placeholder);
+    }
+
+    function markActiveAvatar(element) {
+      document.querySelectorAll('.avatar-gallery-item').forEach((item) => item.classList.remove('active'));
+      if (element) {
+        element.classList.add('active');
+      }
+    }
+
+    function getAvatarData(element) {
+      if (!element) return null;
+      const avatarId = Number(element.dataset.avatarId || 0);
+      const avatarUrl = element.dataset.avatarUrl || '';
+      const avatarName = element.dataset.avatarName || `Avatar #${avatarId}`;
+      if (!avatarId || !avatarUrl) return null;
+      return {
+        id: avatarId,
+        url: avatarUrl,
+        name: avatarName,
+        element: element,
+      };
+    }
+
+    function selectCachedAvatar(avatarId, avatarUrl, element) {
+      renderAvatarImage(avatarUrl);
+      if (selectedAvatarInput) {
+        selectedAvatarInput.value = avatarId;
+      }
+      if (avatarInput) {
+        avatarInput.value = '';
+      }
+      markActiveAvatar(element);
+      activeAvatarId = Number(avatarId);
+      hasAvatar = true;
+      updateAvatarAlert();
+    }
+
+    function renderDeleteMessageWarning(messageCount, messageTexts) {
+      if (!avatarDeleteWarningText || !avatarDeleteMessageList || !avatarDeleteMoreInfo) {
+        return;
+      }
+
+      if (messageCount > 0) {
+        avatarDeleteWarningText.textContent = `Jika avatar ini dihapus, ${messageCount} message berikut akan tampil tanpa avatar:`;
+      } else {
+        avatarDeleteWarningText.textContent = 'Avatar ini belum dipakai message manapun. Tetap hapus avatar ini?';
+      }
+
+      avatarDeleteMessageList.innerHTML = '';
+
+      if (messageTexts.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.className = 'list-group-item text-muted fst-italic';
+        emptyItem.textContent = 'Tidak ada message yang menggunakan avatar ini.';
+        avatarDeleteMessageList.appendChild(emptyItem);
+      } else {
+        messageTexts.forEach((text) => {
+          const item = document.createElement('li');
+          item.className = 'list-group-item';
+          item.textContent = text || '(message kosong)';
+          avatarDeleteMessageList.appendChild(item);
+        });
+      }
+
+      if (messageCount > messageTexts.length) {
+        avatarDeleteMoreInfo.textContent = `Menampilkan ${messageTexts.length} dari ${messageCount} message.`;
+      } else {
+        avatarDeleteMoreInfo.textContent = '';
+      }
+    }
+
+    function applyPostDeletePreviewState(deletedAvatarId) {
+      const toRemove = document.querySelector(`.avatar-gallery-item[data-avatar-id="${deletedAvatarId}"]`);
+      if (toRemove) {
+        toRemove.remove();
+      }
+
+      const remainingItems = document.querySelectorAll('.avatar-gallery-item');
+      if (avatarGallery && remainingItems.length === 0) {
+        avatarGallery.remove();
+      }
+
+      const selectedValue = Number(selectedAvatarInput?.value || 0);
+      const wasActive = Number(activeAvatarId) === Number(deletedAvatarId) || selectedValue === Number(deletedAvatarId);
+      if (!wasActive) {
+        return;
+      }
+
+      if (selectedAvatarInput) {
+        selectedAvatarInput.value = '';
+      }
+      activeAvatarId = null;
+
+      const hasUploadedFile = Boolean(avatarInput && avatarInput.files && avatarInput.files.length > 0);
+      if (hasUploadedFile) {
+        hasAvatar = true;
+        updateAvatarAlert();
+        return;
+      }
+
+      if (remainingItems.length > 0) {
+        const firstAvatar = getAvatarData(remainingItems[0]);
+        if (firstAvatar) {
+          selectCachedAvatar(firstAvatar.id, firstAvatar.url, firstAvatar.element);
+          return;
+        }
+      }
+
+      renderAvatarPlaceholder();
+      hasAvatar = false;
+      updateAvatarAlert();
+    }
+
+    async function openDeleteWarningModal() {
+      if (!pendingAvatar) return;
+      if (avatarDeleteOpenBtn) avatarDeleteOpenBtn.disabled = true;
+
+      try {
+        const usageUrl = buildAvatarEndpoint(avatarUsageUrlTemplate, pendingAvatar.id);
+        const response = await fetch(usageUrl, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const data = await response.json();
+
+        if (!response.ok || data.status !== 'success') {
+          throw new Error(data.message || 'Gagal memuat daftar message avatar.');
+        }
+
+        renderDeleteMessageWarning(data.message_count || 0, data.message_texts || []);
+      } catch (error) {
+        renderDeleteMessageWarning(0, []);
+        if (avatarDeleteWarningText) {
+          avatarDeleteWarningText.textContent = 'Gagal memuat daftar message. Coba lagi.';
+        }
+      } finally {
+        if (avatarDeleteOpenBtn) avatarDeleteOpenBtn.disabled = false;
+      }
+
+      if (actionModal && deleteWarningModal) {
+        showDeleteAfterActionHidden = true;
+        actionModal.hide();
+      } else if (deleteWarningModal) {
+        deleteWarningModal.show();
+      }
+    }
+
+    async function confirmDeleteAvatar() {
+      if (!pendingAvatar) return;
+      if (avatarDeleteConfirmBtn) avatarDeleteConfirmBtn.disabled = true;
+
+      try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        const deleteUrl = buildAvatarEndpoint(avatarDeleteUrlTemplate, pendingAvatar.id);
+        const body = new FormData();
+        body.append('csrfmiddlewaretoken', csrfToken);
+
+        const response = await fetch(deleteUrl, {
+          method: 'POST',
+          body: body,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        const data = await response.json();
+
+        if (!response.ok || data.status !== 'success') {
+          throw new Error(data.message || 'Gagal menghapus avatar.');
+        }
+
+        applyPostDeletePreviewState(pendingAvatar.id);
+        pendingAvatar = null;
+        if (deleteWarningModal) {
+          deleteWarningModal.hide();
+        }
+      } catch (error) {
+        if (avatarDeleteWarningText) {
+          avatarDeleteWarningText.textContent = error.message || 'Gagal menghapus avatar.';
+        }
+      } finally {
+        if (avatarDeleteConfirmBtn) avatarDeleteConfirmBtn.disabled = false;
+      }
+    }
+
+    window.openAvatarAction = function(element) {
+      const avatarData = getAvatarData(element);
+      if (!avatarData) return;
+
+      pendingAvatar = avatarData;
+      if (avatarActionPreview) {
+        avatarActionPreview.src = avatarData.url;
+      }
+      if (avatarActionName) {
+        avatarActionName.textContent = avatarData.name;
+      }
+
+      if (actionModal) {
+        cleanupModalBackdrop(true);
+        actionModal.show();
+      }
+    };
+
     updateAvatarAlert();
 
-    // Avatar upload
+    if (avatarSelectBtn) {
+      avatarSelectBtn.addEventListener('click', function() {
+        if (!pendingAvatar) return;
+        selectCachedAvatar(pendingAvatar.id, pendingAvatar.url, pendingAvatar.element);
+        if (actionModal) {
+          actionModal.hide();
+        }
+      });
+    }
+
+    if (avatarDeleteOpenBtn) {
+      avatarDeleteOpenBtn.addEventListener('click', openDeleteWarningModal);
+    }
+
+    if (avatarDeleteConfirmBtn) {
+      avatarDeleteConfirmBtn.addEventListener('click', confirmDeleteAvatar);
+    }
+
+    updateAvatarAlert();
+
     if (avatarInput) {
       avatarInput.addEventListener('change', (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         const url = URL.createObjectURL(file);
-
-        // Always get fresh DOM reference (replaceWith makes old ref stale)
-        const currentPreview = document.getElementById('avatar-preview');
-        if (currentPreview.tagName.toLowerCase() === 'img') {
-          currentPreview.src = url;
-        } else {
-          const img = document.createElement('img');
-          img.id = 'avatar-preview';
-          img.className = 'avatar-preview';
-          img.src = url;
-          img.alt = 'Avatar';
-          currentPreview.replaceWith(img);
+        renderAvatarImage(url);
+        if (selectedAvatarInput) {
+          selectedAvatarInput.value = '';
         }
-
-        // Clear gallery selection — new upload takes priority
-        document.getElementById('selected-avatar-id').value = '';
-        document.querySelectorAll('.avatar-gallery-item').forEach(item => item.classList.remove('active'));
+        markActiveAvatar(null);
+        activeAvatarId = null;
 
         hasAvatar = true;
         updateAvatarAlert();
       });
     }
 
-    // Form submission validation
     if (formEl) {
       formEl.addEventListener('submit', function(e) {
         if (!hasAvatar) {
           e.preventDefault();
-          avatarAlert.classList.add('show');
-          avatarAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (avatarAlert) {
+            avatarAlert.classList.add('show');
+            avatarAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
           return false;
         }
       });
     }
 
-    // Character counter for message
     function updateCharCount() {
       if (!messageText) return;
       const count = messageText.value.length;
@@ -416,35 +783,6 @@
       messageText.addEventListener('paste', () => setTimeout(updateCharCount, 0));
       updateCharCount();
     }
-
-    // Select an avatar from the saved gallery
-    window.selectCachedAvatar = function(avatarId, avatarUrl, element) {
-      const currentPreview = document.getElementById('avatar-preview');
-      if (currentPreview.tagName.toLowerCase() === 'img') {
-        currentPreview.src = avatarUrl;
-      } else {
-        const img = document.createElement('img');
-        img.id = 'avatar-preview';
-        img.className = 'avatar-preview';
-        img.src = avatarUrl;
-        img.alt = 'Avatar';
-        currentPreview.replaceWith(img);
-      }
-
-      // Set hidden field so server knows which cached avatar to use
-      document.getElementById('selected-avatar-id').value = avatarId;
-
-      // Clear file input — gallery selection takes over
-      const fileInput = document.getElementById('avatar-file');
-      if (fileInput) fileInput.value = '';
-
-      // Update active highlight in gallery
-      document.querySelectorAll('.avatar-gallery-item').forEach(item => item.classList.remove('active'));
-      element.classList.add('active');
-
-      hasAvatar = true;
-      updateAvatarAlert();
-    };
   });
 </script>
 {% endblock %}

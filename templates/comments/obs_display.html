@@ -197,6 +197,25 @@
       const author = document.getElementById("author");
       const messageEl = document.getElementById("message");
       const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const defaultAvatarSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130" role="img" aria-label="default-user-avatar">
+          <rect width="130" height="130" fill="#f3f4f6"/>
+          <circle cx="65" cy="48" r="20" fill="#9ca3af"/>
+          <path d="M30 108c4-20 18-31 35-31s31 11 35 31" fill="#9ca3af"/>
+        </svg>
+      `;
+      const DEFAULT_AVATAR_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(defaultAvatarSvg)}`;
+
+      function setAvatarSrc(url) {
+        const candidate = (url || "").trim();
+        avatar.src = candidate || DEFAULT_AVATAR_ICON;
+      }
+
+      avatar.addEventListener("error", () => {
+        if (avatar.src !== DEFAULT_AVATAR_ICON) {
+          avatar.src = DEFAULT_AVATAR_ICON;
+        }
+      });
 
       // Offscreen element untuk hitung tinggi teks aktual
       const measureEl = document.createElement("div");
@@ -298,7 +317,7 @@
           if (messages.length === 0) {
             author.textContent = "";
             messageEl.textContent = "";
-            avatar.src = "";
+            setAvatarSrc("");
           }
         } catch (err) {
           console.error('Error loading messages:', err);
@@ -320,7 +339,7 @@
           author.textContent = m.author_name || "";
           const text = m.text || "";
           messageEl.textContent = text;
-          avatar.src = m.author_profile_image_url || "";
+          setAvatarSrc(m.author_profile_image_url || "");
 
           // Hitung otomatis agar 200 karakter tetap aman di card
           fitMessageFont(text);
@@ -342,6 +361,7 @@
       }
 
       // Load data pertama kali
+      setAvatarSrc("");
       await load();
 
       // Polling berkala untuk cek perubahan

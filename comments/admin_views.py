@@ -222,6 +222,20 @@ def livechatmessage_list(request):
 	return render(request, 'admin/livechatmessage_list.html', context)
 
 
+def _messages_using_cached_avatar(avatar: CachedAvatar):
+	if not avatar.image:
+		return LiveChatMessage.objects.none()
+
+	avatar_url = avatar.image.url
+	avatar_name = avatar.image.name
+	message_filter = Q(author_profile_image_url=avatar_url)
+	if avatar_name:
+		message_filter |= Q(author_profile_image_url__endswith=avatar_name)
+		message_filter |= Q(author_profile_image_url__endswith=f'/{avatar_name}')
+
+	return LiveChatMessage.objects.filter(message_filter)
+
+
 @login_required(login_url='/admin/login/')
 def manual_message_create(request):
 	"""Staff-only manual message input for display."""
@@ -330,6 +344,72 @@ def manual_message_create(request):
 		return redirect('comments:admin-manual-message')
 
 	return render(request, 'admin/manual_message_form.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def cached_avatar_usage(request, avatar_id):
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	avatar = get_object_or_404(CachedAvatar, pk=avatar_id)
+	affected_messages = _messages_using_cached_avatar(avatar).order_by('-published_at')
+	message_count = affected_messages.count()
+	message_texts = [
+		(text or '').strip()
+		for text in affected_messages.values_list('message_text', flat=True)[:20]
+	]
+
+	return JsonResponse(
+		{
+			'status': 'success',
+			'avatar_id': avatar.id,
+			'avatar_name': avatar.name,
+			'message_count': message_count,
+			'message_texts': message_texts,
+		}
+	)
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def cached_avatar_delete(request, avatar_id):
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	avatar = get_object_or_404(CachedAvatar, pk=avatar_id)
+	affected_messages = _messages_using_cached_avatar(avatar)
+	affected_count = affected_messages.count()
+
+	if affected_count:
+		affected_messages.update(author_profile_image_url='', updated_at=timezone.now())
+
+	avatar_name = avatar.name
+	avatar_image_name = avatar.image.name if avatar.image else ''
+	if avatar.image:
+		avatar.image.delete(save=False)
+	avatar.delete()
+
+	log_activity(
+		request,
+		'cached_avatar_delete',
+		details={
+			'avatar_name': avatar_name,
+			'avatar_image_name': avatar_image_name,
+			'affected_messages': affected_count,
+		},
+	)
+
+	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+		return JsonResponse(
+			{
+				'status': 'success',
+				'avatar_id': avatar_id,
+				'affected_messages': affected_count,
+			}
+		)
+
+	messages.success(request, f'Avatar "{avatar_name}" berhasil dihapus.')
+	return redirect('comments:admin-manual-message')
 
 
 @login_required(login_url='/admin/login/')
