@@ -13,8 +13,11 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from django.contrib.auth import update_session_auth_hash
+from django.core.exceptions import PermissionDenied
+import uuid
 
-from .models import LiveStream, LiveChatMessage
+from .models import LiveStream, LiveChatMessage, ActivityLog, CachedAvatar
+from .services.activity_log import log_activity
 
 
 @login_required(login_url='/admin/login/')
@@ -24,8 +27,8 @@ def admin_dashboard(request):
 	active_streams = LiveStream.objects.filter(is_active=True).count()
 	total_messages = LiveChatMessage.objects.count()
 	
-	# Status counts
-	new_messages = LiveChatMessage.objects.filter(status='new').count()
+	# Status counts (new_messages changed to 'today')
+	new_messages = LiveChatMessage.objects.filter(published_at__date=timezone.now().date()).count()
 	reviewed_messages = LiveChatMessage.objects.filter(status='reviewed').count()
 	sent_messages = LiveChatMessage.objects.filter(status='sent').count()
 	ignored_messages = LiveChatMessage.objects.filter(status='ignored').count()
@@ -37,7 +40,7 @@ def admin_dashboard(request):
 	recent_messages = LiveChatMessage.objects.select_related('live_stream').order_by('-published_at')[:10]
 	
 	# Recent streams
-	recent_streams = LiveStream.objects.order_by('-created_at')[:5]
+	recent_streams = LiveStream.objects.exclude(video_id='manual').order_by('-created_at')[:5]
 	
 	context = {
 		'total_streams': total_streams,
@@ -61,7 +64,7 @@ def livestream_list(request):
 	search_query = request.GET.get('search', '')
 	is_active_filter = request.GET.get('is_active', '')
 	
-	streams = LiveStream.objects.all()
+	streams = LiveStream.objects.exclude(video_id='manual')
 	
 	if search_query:
 		streams = streams.filter(
@@ -107,7 +110,7 @@ def livestream_add(request):
 		video_id = request.POST.get('video_id', '').strip()
 		title = request.POST.get('title', '').strip()
 		is_active = request.POST.get('is_active') == 'on'
-		display_rotation_seconds = request.POST.get('display_rotation_seconds', 6)
+		display_rotation_seconds = request.POST.get('display_rotation_seconds', 15)
 		
 		if not video_id:
 			messages.error(request, 'Video ID is required.')
@@ -167,6 +170,11 @@ def livechatmessage_list(request):
 	search_query = request.GET.get('search', '')
 	stream_filter = request.GET.get('stream', '')
 	display_filter = request.GET.get('display', '')
+	start_date = request.GET.get('start_date', '')
+	end_date = request.GET.get('end_date', '')
+
+	from .services.display_limit import enforce_display_message_length
+	enforce_display_message_length(max_length=200)
 	
 	messages_qs = LiveChatMessage.objects.select_related('live_stream').all()
 	
@@ -182,8 +190,16 @@ def livechatmessage_list(request):
 	
 	if display_filter:
 		messages_qs = messages_qs.filter(display_selected=(display_filter == 'true'))
+
+	if start_date and not end_date:
+		messages_qs = messages_qs.filter(published_at__date=start_date)
+	elif start_date and end_date:
+		messages_qs = messages_qs.filter(published_at__date__gte=start_date, published_at__date__lte=end_date)
+	elif not start_date and end_date:
+		messages_qs = messages_qs.filter(published_at__date__lte=end_date)
 	
-	messages_qs = messages_qs.order_by('-published_at')
+	# Order by: pinned first (desc), then by published date (desc)
+	messages_qs = messages_qs.order_by('-is_pinned', '-published_at')
 	
 	# Pagination
 	paginator = Paginator(messages_qs, 30)
@@ -198,33 +214,338 @@ def livechatmessage_list(request):
 		'search_query': search_query,
 		'stream_filter': stream_filter,
 		'display_filter': display_filter,
+		'start_date': start_date,
+		'end_date': end_date,
 		'streams': streams,
 	}
 	
 	return render(request, 'admin/livechatmessage_list.html', context)
 
 
+def _messages_using_cached_avatar(avatar: CachedAvatar):
+	if not avatar.image:
+		return LiveChatMessage.objects.none()
+
+	avatar_url = avatar.image.url
+	avatar_name = avatar.image.name
+	message_filter = Q(author_profile_image_url=avatar_url)
+	if avatar_name:
+		message_filter |= Q(author_profile_image_url__endswith=avatar_name)
+		message_filter |= Q(author_profile_image_url__endswith=f'/{avatar_name}')
+
+	return LiveChatMessage.objects.filter(message_filter)
+
+
+@login_required(login_url='/admin/login/')
+def manual_message_create(request):
+	"""Staff-only manual message input for display."""
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	manual_stream, _created = LiveStream.objects.get_or_create(
+		video_id='manual',
+		defaults={
+			'title': 'Manual Input',
+			'is_active': False,
+			'display_rotation_seconds': 15,
+		},
+	)
+	latest_avatar = CachedAvatar.objects.order_by('-created_at').first()
+	all_avatars = CachedAvatar.objects.order_by('-created_at')
+
+	context = {
+		'latest_avatar': latest_avatar,
+		'all_avatars': all_avatars,
+	}
+
+	if request.method == 'POST':
+		author_name = request.POST.get('author_name', '').strip()
+		message_text = request.POST.get('message_text', '').strip()
+		avatar_file = request.FILES.get('avatar_file')
+		selected_avatar_id = request.POST.get('selected_avatar_id', '').strip()
+
+		context.update(
+			{
+				'author_name': author_name,
+				'message_text': message_text,
+				'has_avatar': bool(latest_avatar),
+			}
+		)
+
+		if not author_name or not message_text:
+			messages.error(request, 'Nama dan pesan wajib diisi.')
+			return render(request, 'admin/manual_message_form.html', context)
+
+		if len(message_text) > 200:
+			messages.error(request, 'Pesan maksimal 200 karakter.')
+			return render(request, 'admin/manual_message_form.html', context)
+
+		if not avatar_file and not latest_avatar and not selected_avatar_id:
+			messages.error(request, 'Avatar wajib diisi. Upload avatar terlebih dahulu.')
+			return render(request, 'admin/manual_message_form.html', context)
+
+		avatar_url = ''
+		new_avatar = None
+		if avatar_file:
+			# Overwrite jika nama file sama — hemat disk
+			avatar_label = avatar_file.name or f"manual-avatar-{uuid.uuid4().hex[:6]}"
+			existing = CachedAvatar.objects.filter(name=avatar_label).first()
+			if existing:
+				if existing.image:
+					existing.image.delete(save=False)
+				existing.image = avatar_file
+				existing.save()
+				new_avatar = existing
+			else:
+				new_avatar = CachedAvatar.objects.create(
+					name=avatar_label,
+					image=avatar_file,
+				)
+			avatar_url = new_avatar.image.url
+		elif selected_avatar_id:
+			try:
+				new_avatar = CachedAvatar.objects.get(id=selected_avatar_id)
+				avatar_url = new_avatar.image.url
+			except CachedAvatar.DoesNotExist:
+				new_avatar = latest_avatar
+				avatar_url = latest_avatar.image.url if latest_avatar else ''
+		elif latest_avatar:
+			new_avatar = latest_avatar
+			avatar_url = latest_avatar.image.url
+
+		message = LiveChatMessage.objects.create(
+			live_stream=manual_stream,
+			message_id=f"manual-{uuid.uuid4()}",
+			author_name=author_name,
+			author_channel_id='',
+			author_profile_image_url=avatar_url,
+			message_text=message_text,
+			published_at=timezone.now(),
+			display_selected=True,
+			status=LiveChatMessage.Status.SENT,
+			sent_at=timezone.now(),
+		)
+
+		from .services.display_limit import enforce_display_limit
+		enforce_display_limit()
+
+		log_activity(
+			request,
+			'manual_message_create',
+			message=message,
+			livestream=manual_stream,
+			details={
+				'avatar_cached': bool(new_avatar),
+				'avatar_id': new_avatar.id if new_avatar else (latest_avatar.id if latest_avatar else None),
+			},
+		)
+
+		messages.success(request, 'Komentar manual berhasil ditambahkan ke display.')
+		return redirect('comments:admin-manual-message')
+
+	return render(request, 'admin/manual_message_form.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def cached_avatar_usage(request, avatar_id):
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	avatar = get_object_or_404(CachedAvatar, pk=avatar_id)
+	affected_messages = _messages_using_cached_avatar(avatar).order_by('-published_at')
+	message_count = affected_messages.count()
+	message_texts = [
+		(text or '').strip()
+		for text in affected_messages.values_list('message_text', flat=True)[:20]
+	]
+
+	return JsonResponse(
+		{
+			'status': 'success',
+			'avatar_id': avatar.id,
+			'avatar_name': avatar.name,
+			'message_count': message_count,
+			'message_texts': message_texts,
+		}
+	)
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def cached_avatar_delete(request, avatar_id):
+	if not request.user.is_staff:
+		raise PermissionDenied
+
+	avatar = get_object_or_404(CachedAvatar, pk=avatar_id)
+	affected_messages = _messages_using_cached_avatar(avatar)
+	affected_count = affected_messages.count()
+
+	if affected_count:
+		affected_messages.update(author_profile_image_url='', updated_at=timezone.now())
+
+	avatar_name = avatar.name
+	avatar_image_name = avatar.image.name if avatar.image else ''
+	if avatar.image:
+		avatar.image.delete(save=False)
+	avatar.delete()
+
+	log_activity(
+		request,
+		'cached_avatar_delete',
+		details={
+			'avatar_name': avatar_name,
+			'avatar_image_name': avatar_image_name,
+			'affected_messages': affected_count,
+		},
+	)
+
+	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+		return JsonResponse(
+			{
+				'status': 'success',
+				'avatar_id': avatar_id,
+				'affected_messages': affected_count,
+			}
+		)
+
+	messages.success(request, f'Avatar "{avatar_name}" berhasil dihapus.')
+	return redirect('comments:admin-manual-message')
+
+
 @login_required(login_url='/admin/login/')
 def livechatmessage_detail(request, pk):
 	"""View/Edit live chat message detail."""
 	message = get_object_or_404(LiveChatMessage.objects.select_related('live_stream'), pk=pk)
+	is_manual_message = (
+		message.live_stream.video_id == 'manual'
+		or (message.message_id or '').startswith('manual-')
+	)
 	
 	if request.method == 'POST':
-		message.note = request.POST.get('note', '')
+		def reject_update(error_text: str):
+			if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+				return JsonResponse({'status': 'error', 'message': error_text}, status=400)
+			messages.error(request, error_text)
+			return redirect('comments:admin-livechatmessage-detail', pk=message.pk)
+
+		updated_fields = ['updated_at']
+		message.updated_at = timezone.now()
 		previous_display_selected = message.display_selected
-		message.display_selected = request.POST.get('display_selected') == 'on'
+		previous_is_pinned = message.is_pinned
+		previous_message_text = message.message_text
+		display_changed = False
+		pin_changed = False
+		text_changed = False
+		removed_by_limit_ids = []
+
+		# handle manual message text edit
+		if 'message_text' in request.POST:
+			if not is_manual_message:
+				return reject_update('Hanya pesan manual yang bisa diedit.')
+
+			edited_text = request.POST.get('message_text', '').strip()
+			if not edited_text:
+				return reject_update('Pesan manual tidak boleh kosong.')
+			if len(edited_text) > 200:
+				return reject_update('Pesan maksimal 200 karakter.')
+
+			if edited_text != message.message_text:
+				message.message_text = edited_text
+				updated_fields.append('message_text')
+				text_changed = True
 		
-		if message.display_selected and not previous_display_selected:
-			message.status = LiveChatMessage.Status.SENT
-			if not message.sent_at:
+		# Update only fields present in POST (essential for AJAX partial updates)
+		if 'note' in request.POST:
+			message.note = request.POST.get('note', '')
+			updated_fields.append('note')
+		
+		# handle display_selected
+		if 'display_selected' in request.POST:
+			requested_display_selected = request.POST.get('display_selected') == 'on'
+			if requested_display_selected and len((message.message_text or '')) > 200:
+				return reject_update('Pesan lebih dari 200 karakter. Silakan edit dulu sebelum ditampilkan di OBS.')
+
+			message.display_selected = requested_display_selected
+			updated_fields.append('display_selected')
+			display_changed = message.display_selected != previous_display_selected
+			
+			if message.display_selected and not previous_display_selected:
+				message.status = LiveChatMessage.Status.SENT
 				message.sent_at = timezone.now()
+				message.display_order = None  # Reset order so it jumps to 'new priority' pool
+				updated_fields.extend(['status', 'sent_at', 'display_order'])
 		
-		message.save()
+		# handle is_pinned
+		if 'is_pinned' in request.POST:
+			requested_is_pinned = request.POST.get('is_pinned') == 'on'
+			if requested_is_pinned and len((message.message_text or '')) > 200:
+				return reject_update('Pesan lebih dari 200 karakter tidak bisa dipin di OBS.')
+
+			message.is_pinned = requested_is_pinned
+			updated_fields.append('is_pinned')
+			pin_changed = message.is_pinned != previous_is_pinned
+		
+		# Use update_fields to prevent overwriting other fields (e.g. from background polling)
+		message.save(update_fields=list(dict.fromkeys(updated_fields)))
+		
+		# Enforce display limit if message was newly selected
+		if 'display_selected' in request.POST and message.display_selected and not previous_display_selected:
+			from .services.display_limit import enforce_display_limit, enforce_display_message_length
+			enforce_display_message_length(max_length=200)
+			removed_by_limit_ids = enforce_display_limit()
+
+		# Verify save
+		message.refresh_from_db()
+
+		if display_changed:
+			action = 'select_display' if message.display_selected else 'unselect_display'
+			log_activity(
+				request,
+				action,
+				message=message,
+				livestream=message.live_stream,
+				details={'source': 'single'},
+			)
+
+		if pin_changed:
+			action = 'pin' if message.is_pinned else 'unpin'
+			log_activity(
+				request,
+				action,
+				message=message,
+				livestream=message.live_stream,
+				details={'source': 'single'},
+			)
+
+		if text_changed:
+			log_activity(
+				request,
+				'manual_message_edit',
+				message=message,
+				livestream=message.live_stream,
+				details={
+					'source': 'detail',
+					'previous_length': len(previous_message_text or ''),
+					'new_length': len(message.message_text or ''),
+				},
+			)
+		
+		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+			return JsonResponse({
+				'status': 'success',
+				'message': f'Message from "{message.author_name}" updated successfully.',
+				'is_pinned': message.is_pinned,
+				'display_selected': message.display_selected,
+				'display_limit_removed': len(removed_by_limit_ids),
+				'display_limit_removed_ids': removed_by_limit_ids,
+			})
+			
 		messages.success(request, f'Message from "{message.author_name}" updated successfully.')
 		return redirect('comments:admin-livechatmessage-list')
 	
 	context = {
 		'message': message,
+		'is_manual_message': is_manual_message,
 	}
 	return render(request, 'admin/livechatmessage_detail.html', context)
 
@@ -242,26 +563,157 @@ def livechatmessage_bulk_action(request):
 	
 	messages_qs = LiveChatMessage.objects.filter(id__in=message_ids)
 	count = messages_qs.count()
+
+	snapshots = []
+	for msg in messages_qs.select_related('live_stream'):
+		snapshots.append({
+			'author_name': msg.author_name,
+			'message_text': msg.message_text,
+			'stream_title': msg.live_stream.title if msg.live_stream else None,
+			'stream_video_id': msg.live_stream.video_id if msg.live_stream else None,
+		})
+
+	base_details = {'count': count, 'message_ids': message_ids}
+	if snapshots:
+		first = snapshots[0]
+		base_details.update({
+			'message_author': first.get('author_name'),
+			'message_text': first.get('message_text'),
+			'stream_title': first.get('stream_title'),
+			'stream_video_id': first.get('stream_video_id'),
+		})
+		if count > 1:
+			base_details['messages'] = snapshots[:3]
 	
 	if action == 'mark_display':
-		messages_qs.update(display_selected=True)
-		messages.success(request, f'{count} message(s) marked for display.')
+		eligible_ids = []
+		blocked_over_200_ids = []
+		for msg in messages_qs.only('id', 'message_text'):
+			if len((msg.message_text or '')) > 200:
+				blocked_over_200_ids.append(msg.id)
+			else:
+				eligible_ids.append(msg.id)
+
+		selected_count = 0
+		removed_ids = []
+		if eligible_ids:
+			selected_count = LiveChatMessage.objects.filter(id__in=eligible_ids).update(display_selected=True)
+			from .services.display_limit import enforce_display_limit, enforce_display_message_length
+			enforce_display_message_length(max_length=200)
+			removed_ids = enforce_display_limit()
+
+		if removed_ids:
+			messages.info(request, f'{len(removed_ids)} oldest message(s) removed from display due to limit.')
+		if blocked_over_200_ids:
+			messages.warning(request, f'{len(blocked_over_200_ids)} message(s) over 200 characters were not selected for OBS.')
+		if selected_count:
+			messages.add_message(request, messages.SUCCESS, f'{selected_count} message(s) marked for display.', extra_tags='success')
+		else:
+			messages.warning(request, 'No eligible messages to mark for display (max 200 characters).')
+
+		details = {
+			**base_details,
+			'removed_ids': removed_ids,
+			'blocked_over_200_ids': blocked_over_200_ids,
+			'selected_count': selected_count,
+		}
+		log_activity(request, 'bulk_select_display', details=details)
 	elif action == 'unmark_display':
 		messages_qs.update(display_selected=False)
-		messages.success(request, f'{count} message(s) unmarked for display.')
+		messages.add_message(request, messages.INFO, f'{count} message(s) removed from display.', extra_tags='secondary')
+		log_activity(request, 'bulk_unselect_display', details=base_details)
+	elif action == 'pin_message':
+		messages_qs.update(is_pinned=True)
+		messages.add_message(request, messages.WARNING, f'{count} message(s) pinned.', extra_tags='warning')
+		log_activity(request, 'bulk_pin', details=base_details)
+	elif action == 'unpin_message':
+		messages_qs.update(is_pinned=False)
+		messages.add_message(request, messages.INFO, f'{count} message(s) unpinned.', extra_tags='secondary')
+		log_activity(request, 'bulk_unpin', details=base_details)
 	elif action == 'mark_sent':
 		messages_qs.update(status=LiveChatMessage.Status.SENT, sent_at=timezone.now())
-		messages.success(request, f'{count} message(s) marked as sent.')
+		messages.add_message(request, messages.INFO, f'{count} message(s) marked as sent.', extra_tags='info')
+		log_activity(request, 'bulk_mark_sent', details=base_details)
 	elif action == 'mark_ignored':
 		messages_qs.update(status=LiveChatMessage.Status.IGNORED)
-		messages.success(request, f'{count} message(s) marked as ignored.')
+		messages.add_message(request, messages.INFO, f'{count} message(s) marked as ignored.', extra_tags='secondary')
+		log_activity(request, 'bulk_mark_ignored', details=base_details)
 	elif action == 'delete':
+		details = base_details.copy()
 		messages_qs.delete()
-		messages.success(request, f'{count} message(s) deleted.')
+		messages.add_message(request, messages.ERROR, f'{count} message(s) deleted.', extra_tags='danger')
+		log_activity(request, 'bulk_delete', details=details)
 	else:
 		messages.error(request, 'Unknown action.')
 	
 	return redirect('comments:admin-livechatmessage-list')
+
+
+@login_required(login_url='/admin/login/')
+def activity_log_list(request):
+	"""List activity logs (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	search_query = request.GET.get('search', '')
+	action_filter = request.GET.get('action', '')
+
+	logs = ActivityLog.objects.select_related('user', 'message', 'livestream')
+
+	if search_query:
+		logs = logs.filter(
+			Q(user__username__icontains=search_query) |
+			Q(action__icontains=search_query) |
+			Q(message__author_name__icontains=search_query) |
+			Q(message__message_text__icontains=search_query) |
+			Q(livestream__video_id__icontains=search_query)
+		)
+
+	if action_filter:
+		logs = logs.filter(action=action_filter)
+
+	actions = ActivityLog.objects.values_list('action', flat=True).distinct().order_by('action')
+
+	logs = logs.order_by('-created_at')
+
+	paginator = Paginator(logs, 50)
+	page_number = request.GET.get('page', 1)
+	page_obj = paginator.get_page(page_number)
+
+	context = {
+		'page_obj': page_obj,
+		'search_query': search_query,
+		'action_filter': action_filter,
+		'actions': actions,
+	}
+
+	return render(request, 'admin/activity_log.html', context)
+
+
+@login_required(login_url='/admin/login/')
+def activity_log_detail(request, pk):
+	"""View activity log detail (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	log = get_object_or_404(ActivityLog.objects.select_related('user', 'message', 'livestream'), pk=pk)
+	return render(request, 'admin/activity_log_detail.html', {'log': log})
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def activity_log_delete(request, pk):
+	"""Delete activity log entry (superuser only)."""
+	if not request.user.is_superuser:
+		messages.error(request, 'You do not have permission to access this page.')
+		return redirect('comments:admin-dashboard')
+
+	log = get_object_or_404(ActivityLog, pk=pk)
+	log.delete()
+	messages.success(request, 'Activity log deleted.')
+	return redirect('comments:admin-activity-log')
 
 
 # ============================================

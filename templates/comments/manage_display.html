@@ -3,6 +3,8 @@
 
 {% block title %}Manage Display - YouTube Comment Grabber{% endblock %}
 
+{% block header_title %}Manage Display{% endblock %}
+
 {% block content %}
 <!-- [ breadcrumb ] start -->
 <div class="page-header">
@@ -27,26 +29,54 @@
 <!-- Rotation Settings -->
 <div class="row">
   <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h5>Display Settings</h5>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 d-flex align-items-center">
+          <i class="feather icon-settings me-2 text-primary"></i> Display Settings
+        </h5>
       </div>
       <div class="card-body">
-        <div class="row align-items-center">
-          <div class="col-md-4">
-            <label for="rotation-seconds" class="form-label">Rotation seconds (applies to all messages)</label>
-            <input id="rotation-seconds" name="seconds" type="number" min="1" class="form-control" value="{{ current_rotation_seconds|default:'' }}" />
+        <div class="p-3 border rounded bg-light">
+          <div class="row g-3">
+            <div class="col-lg-5">
+              <label for="rotation-seconds" class="form-label fw-bold small text-uppercase text-muted mb-2">Rotation seconds</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="feather icon-clock text-muted"></i></span>
+                <input id="rotation-seconds" name="seconds" type="number" min="1" class="form-control border-start-0 ps-0" value="{{ current_rotation_seconds|default:'' }}" />
+              </div>
+              <div class="rounded px-3 py-2 small text-muted d-flex align-items-center mt-2">
+                <i class="feather icon-info text-primary me-2"></i>
+                <span>This setting controls how long each comment is shown in the OBS display.</span>
+              </div>
+            </div>
+            
+            <div class="col-lg-3">
+              <label class="form-label fw-bold small text-uppercase text-muted mb-2">&nbsp;</label>
+              <button id="save-rotation" class="btn btn-primary w-100">
+                <i class="feather icon-save"></i> Save Rotation
+              </button>
+            </div>
           </div>
-          <div class="col-md-2">
-            <label class="form-label">&nbsp;</label>
-            <button id="save-rotation" class="btn btn-primary w-100">
-              <i class="feather icon-save"></i> Save Rotation
-            </button>
-          </div>
-          <div class="col-md-6">
-            <div class="alert alert-info mb-0">
-              <i class="feather icon-info"></i> 
-              This setting controls how long each comment is shown in the OBS display.
+        </div>
+
+        <div class="p-3 border rounded bg-light mt-3">
+          <div class="row g-3">
+            <div class="col-lg-5">
+              <label for="display-limit" class="form-label fw-bold small text-uppercase text-muted mb-2">Max messages in display</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white border-end-0"><i class="feather icon-list text-muted"></i></span>
+                <input id="display-limit" name="limit" type="number" min="1" class="form-control border-start-0 ps-0" value="{{ current_display_limit|default:'' }}" />
+              </div>
+              <div class="rounded px-3 py-2 small text-muted d-flex align-items-center mt-2">
+                <i class="feather icon-alert-triangle text-warning me-2"></i>
+                <span>Oldest non-pinned messages are removed from display when limit is exceeded.</span>
+              </div>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label fw-bold small text-uppercase text-muted mb-2">&nbsp;</label>
+              <button id="save-limit" class="btn btn-primary w-100">
+                <i class="feather icon-save"></i> Save Limit
+              </button>
             </div>
           </div>
         </div>
@@ -58,10 +88,15 @@
 <!-- Selected Messages -->
 <div class="row">
   <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h5>Selected Messages (All Streams)</h5>
-        <p class="text-muted mb-0">Drag to reorder. Click <strong>Save Order</strong> to save the global order.</p>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-1">Selected Messages (All Streams)</h5>
+          <p class="text-muted mb-0">Use arrow buttons to reorder. Click <strong>Save Order</strong> to save the global order.</p>
+        </div>
+        <button id="save-order" class="btn btn-success">
+          <i class="feather icon-save"></i> Save Order
+        </button>
       </div>
       <div class="card-body">
         <div class="table-responsive">
@@ -71,20 +106,20 @@
                 <th style="width: 100px">Order</th>
                 <th>Author</th>
                 <th>Message</th>
-                <th>Stream</th>
+                <th style="width: 120px">Actions</th>
               </tr>
             </thead>
             <tbody id="messages-list"></tbody>
           </table>
         </div>
-        <div class="mt-3">
-          <button id="save-order" class="btn btn-success">
-            <i class="feather icon-save"></i> Save Order
-          </button>
-        </div>
       </div>
     </div>
   </div>
+</div>
+
+<!-- Toast Container -->
+<div class="position-fixed top-0 end-0 p-3" style="z-index: 1080">
+  <div id="toast-container"></div>
 </div>
 {% endblock %}
 
@@ -103,6 +138,27 @@
     console.error("CSRF token not found in DOM or cookies; API requests requiring CSRF protection may fail.");
   }
 
+  function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    const toastEl = document.createElement("div");
+    toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+    toastEl.setAttribute("role", "alert");
+    toastEl.setAttribute("aria-live", "assertive");
+    toastEl.setAttribute("aria-atomic", "true");
+    toastEl.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    `;
+    container.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+    toast.show();
+    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+  }
+
   function fetchMessages() {
     fetch('{% url "comments:manage-messages-api" %}')
       .then((r) => r.json())
@@ -111,76 +167,71 @@
         tbody.innerHTML = "";
         data.messages.forEach((m, idx) => {
           const tr = document.createElement("tr");
-          tr.draggable = true;
           tr.dataset.id = m.id;
           tr.style.borderBottom = "1px solid #eee";
+          
+          const isFirst = idx === 0;
+          const isLast = idx === data.messages.length - 1;
+          
           tr.innerHTML = `
           <td style="padding:8px">${idx + 1}</td>
           <td style="padding:8px"><strong>${m.author}</strong></td>
           <td style="padding:8px">${m.text}</td>
-          <td style="padding:8px">${m.live_stream_title || m.video_id || ""}</td>
+          <td style="padding:8px">
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-primary" onclick="moveUp(${m.id})" ${isFirst ? 'disabled' : ''} title="Move up">
+                <i class="feather icon-chevron-up"></i>
+              </button>
+              <button type="button" class="btn btn-outline-primary" onclick="moveDown(${m.id})" ${isLast ? 'disabled' : ''} title="Move down">
+                <i class="feather icon-chevron-down"></i>
+              </button>
+            </div>
+          </td>
         `;
           tbody.appendChild(tr);
         });
-        attachDnD();
-        // Refresh numbering after loading
-        if (window._manageRefreshOrder) {
-          window._manageRefreshOrder();
-        }
       });
   }
 
-  function attachDnD() {
-    const list = document.getElementById("messages-list");
-    let dragEl = null;
-
-    function refreshOrderNumbers() {
-      Array.from(list.querySelectorAll("tr")).forEach((r, i) => {
-        const first = r.querySelector("td");
-        if (first) first.textContent = i + 1;
-      });
-    }
-
-    list.querySelectorAll("tr").forEach((row) => {
-      row.addEventListener("dragstart", (e) => {
-        dragEl = row;
-        row.style.opacity = 0.5;
-        e.dataTransfer.effectAllowed = "move";
-      });
-      row.addEventListener("dragend", (e) => {
-        if (dragEl) dragEl.style.opacity = "";
-        dragEl = null;
-      });
-
-      // More accurate dragover: decide insert before/after based on cursor position
-      row.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        if (!dragEl || row === dragEl) return;
-        const rect = row.getBoundingClientRect();
-        const offset = e.clientY - rect.top;
-        const half = rect.height / 2;
-        if (offset < half) {
-          // insert before this row
-          if (row.previousSibling !== dragEl) list.insertBefore(dragEl, row);
-        } else {
-          // insert after this row
-          if (row.nextSibling !== dragEl) list.insertBefore(dragEl, row.nextSibling);
-        }
-      });
-
-      row.addEventListener("drop", (e) => {
-        e.preventDefault();
-        if (!dragEl) return;
-        // ensure visible order numbers update
-        refreshOrderNumbers();
-      });
-    });
-
-    // expose refresh to outer scope for initial numbering
-    if (!window._manageRefreshOrder) window._manageRefreshOrder = refreshOrderNumbers;
+  function moveUp(messageId) {
+    const tbody = document.getElementById("messages-list");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    const currentIndex = rows.findIndex(row => parseInt(row.dataset.id) === messageId);
     
-    // Call refresh immediately to set initial numbers
-    refreshOrderNumbers();
+    if (currentIndex > 0) {
+      const currentRow = rows[currentIndex];
+      const previousRow = rows[currentIndex - 1];
+      tbody.insertBefore(currentRow, previousRow);
+      refreshOrderNumbers();
+    }
+  }
+
+  function moveDown(messageId) {
+    const tbody = document.getElementById("messages-list");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    const currentIndex = rows.findIndex(row => parseInt(row.dataset.id) === messageId);
+    
+    if (currentIndex < rows.length - 1) {
+      const currentRow = rows[currentIndex];
+      const nextRow = rows[currentIndex + 1];
+      tbody.insertBefore(nextRow, currentRow);
+      refreshOrderNumbers();
+    }
+  }
+
+  function refreshOrderNumbers() {
+    const tbody = document.getElementById("messages-list");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.forEach((row, idx) => {
+      const firstCell = row.querySelector("td");
+      if (firstCell) firstCell.textContent = idx + 1;
+      
+      // Update button states
+      const upBtn = row.querySelector('button[onclick*="moveUp"]');
+      const downBtn = row.querySelector('button[onclick*="moveDown"]');
+      if (upBtn) upBtn.disabled = idx === 0;
+      if (downBtn) downBtn.disabled = idx === rows.length - 1;
+    });
   }
 
   window.addEventListener("load", () => {
@@ -200,15 +251,15 @@
     })
       .then((r) => r.json())
       .then((js) => {
-        if (js.status === "ok") alert("Order saved");
-        else alert("Error");
+        if (js.status === "ok") showToast("Order saved", "success");
+        else showToast("Failed to save order", "danger");
       });
   });
 
   document.getElementById("save-rotation").addEventListener("click", () => {
     const seconds = document.getElementById("rotation-seconds").value;
     if (!seconds) {
-      alert("Masukkan nilai detik");
+      showToast("Masukkan nilai detik", "warning");
       return;
     }
     const form = new FormData();
@@ -222,8 +273,34 @@
     })
       .then((r) => r.json())
       .then((js) => {
-        if (js.status === "ok") alert("Rotation updated for " + js.updated_streams + " streams");
-        else alert("Error");
+        if (js.status === "ok") showToast("Rotation updated for " + js.updated_streams + " streams", "success");
+        else showToast("Failed to update rotation", "danger");
+      });
+  });
+
+  document.getElementById("save-limit").addEventListener("click", () => {
+    const limit = document.getElementById("display-limit").value;
+    if (!limit) {
+      showToast("Masukkan nilai limit", "warning");
+      return;
+    }
+    const form = new FormData();
+    form.append("limit", limit);
+    fetch('{% url "comments:manage-update-display-limit" %}', {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": CSRF,
+      },
+      body: form,
+    })
+      .then((r) => r.json())
+      .then((js) => {
+        if (js.status === "ok") {
+          const removedText = js.removed ? `, removed ${js.removed} old message(s)` : "";
+          showToast("Limit updated for " + js.updated_streams + " streams" + removedText, "success");
+        } else {
+          showToast("Failed to update limit", "danger");
+        }
       });
   });
 </script>

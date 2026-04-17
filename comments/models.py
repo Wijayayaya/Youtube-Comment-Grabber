@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 
 class LiveStream(models.Model):
@@ -12,7 +13,9 @@ class LiveStream(models.Model):
 	last_polled_at = models.DateTimeField(null=True, blank=True)
 	# OBS integration: reference to shared OBS config
 	# Display rotation: seconds each selected comment is shown
-	display_rotation_seconds = models.PositiveIntegerField(default=6, help_text='Seconds each comment is shown in the display')
+	display_rotation_seconds = models.PositiveIntegerField(default=15, help_text='Seconds each comment is shown in the display')
+	# Max number of messages kept in display rotation (excluding pinned)
+	display_limit = models.PositiveIntegerField(default=100, help_text='Max number of messages kept in display rotation (excluding pinned)')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 
@@ -39,6 +42,8 @@ class LiveChatMessage(models.Model):
 	author_profile_image_url = models.URLField(max_length=500, blank=True)
 	# Mark message to be shown on the public comment display
 	display_selected = models.BooleanField(default=False)
+	# Pin message to keep it at the top of the list
+	is_pinned = models.BooleanField(default=False, db_index=True)
 	message_text = models.TextField()
 	published_at = models.DateTimeField()
 	status = models.CharField(max_length=32, choices=Status.choices, default=Status.NEW)
@@ -74,4 +79,33 @@ class ManageableLiveChatMessage(LiveChatMessage):
 		proxy = True
 		verbose_name = 'Manage live chat'
 		verbose_name_plural = 'Manage live chat'
+
+
+class CachedAvatar(models.Model):
+	name = models.CharField(max_length=120, unique=True)
+	image = models.ImageField(upload_to='avatar_cache/')
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ['-created_at']
+
+	def __str__(self) -> str:
+		return self.name
+
+
+class ActivityLog(models.Model):
+	user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	action = models.CharField(max_length=64, db_index=True)
+	message = models.ForeignKey(LiveChatMessage, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	livestream = models.ForeignKey(LiveStream, null=True, blank=True, on_delete=models.SET_NULL, related_name='activity_logs')
+	details = models.JSONField(default=dict, blank=True)
+	ip_address = models.GenericIPAddressField(null=True, blank=True)
+	created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+	class Meta:
+		ordering = ['-created_at']
+
+	def __str__(self) -> str:
+		user_label = self.user.username if self.user else 'system'
+		return f"{user_label}: {self.action}"
 

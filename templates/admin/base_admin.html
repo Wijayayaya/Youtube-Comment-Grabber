@@ -1,35 +1,36 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <title>{% block title %}YouTube Comment Dashboard{% endblock %}</title>
   <!-- [Meta] -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  
+
   <!-- [Favicon] icon -->
   <link rel="icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
-  
+
   <!-- [Font] Family -->
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  
+
   <!-- [Tabler Icons] -->
   <link rel="stylesheet" href="{% static 'assets/fonts/tabler-icons.min.css' %}">
-  
+
   <!-- [Feather Icons] -->
   <link rel="stylesheet" href="{% static 'assets/fonts/feather.css' %}">
-  
+
   <!-- [Font Awesome Icons] -->
   <link rel="stylesheet" href="{% static 'assets/fonts/fontawesome.css' %}">
-  
+
   <!-- [Material Icons] -->
   <link rel="stylesheet" href="{% static 'assets/fonts/material.css' %}">
-  
+
   <!-- [Template CSS Files] -->
   <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" id="main-style-link">
   <link rel="stylesheet" href="{% static 'assets/css/style-preset.css' %}">
-  
+
   <style>
     /* Mobile specific styles */
     @media (max-width: 1024px) {
@@ -39,38 +40,53 @@
         left: 0 !important;
         right: 0 !important;
         z-index: 1030 !important;
-        background: #1e293b !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        background: #0f172a !important;
+        /* Darker navy for premium header */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+        height: 70px !important;
       }
-      
+
       .pc-sidebar-collapse {
         display: block !important;
       }
-      
+
       #sidebar-hide {
-        width: 44px !important;
-        height: 44px !important;
+        width: 48px !important;
+        height: 48px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background: #3b82f6 !important;
-        border-radius: 8px !important;
-        margin: 8px !important;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3) !important;
+        border: none !important;
+        margin: 0 !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
       }
-      
+
+      #sidebar-hide:active,
+      #sidebar-hide:focus {
+        background: #3b82f6 !important;
+        /* Fixed: Not disappearing anymore */
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
+        transform: scale(0.92) !important;
+      }
+
       #sidebar-hide svg {
         stroke: #ffffff !important;
         display: block !important;
+        width: 28px !important;
+        height: 28px !important;
       }
-      
+
       #sidebar-hide i[data-feather="menu"] {
         display: none !important;
       }
-      
+
       .pc-container {
-        margin-top: 70px !important;
+        margin-top: 85px !important;
       }
-      
+
       /* Sidebar mobile overlay */
       .pc-sidebar {
         position: fixed !important;
@@ -78,16 +94,16 @@
         left: -280px !important;
         height: 100vh !important;
         width: 280px !important;
-        z-index: 1029 !important;
-        transition: left 0.3s ease !important;
-        background: #1e293b !important;
+        z-index: 1031 !important;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background: #0f172a !important;
       }
-      
+
       .pc-sidebar.mob-sidebar-active {
         left: 0 !important;
-        box-shadow: 2px 0 8px rgba(0,0,0,0.3) !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4) !important;
       }
-      
+
       /* Overlay when sidebar open */
       body.mob-sidebar-active::before {
         content: '';
@@ -96,39 +112,93 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1028;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 1030;
       }
     }
-    
-    /* Desktop - hide mobile SVG and style hamburger */
+
+    /* Desktop style hamburger */
     @media (min-width: 1025px) {
-      #sidebar-hide > svg:first-child {
+      #sidebar-hide>svg:first-child {
         display: none !important;
       }
-      
+
       #sidebar-hide {
-        width: 40px !important;
-        height: 40px !important;
+        width: 42px !important;
+        height: 42px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background: #3b82f6 !important;
-        border-radius: 8px !important;
+        background: rgba(59, 130, 246, 0.1) !important;
+        color: #3b82f6 !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(59, 130, 246, 0.2) !important;
+        transition: all 0.2s ease !important;
       }
-      
-      #sidebar-hide svg {
+
+      #sidebar-hide:hover {
+        background: #3b82f6 !important;
         color: #ffffff !important;
-        stroke: #ffffff !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+      }
+
+      #sidebar-hide svg,
+      #sidebar-hide i {
+        color: inherit !important;
+        stroke: currentColor !important;
+      }
+
+      .sidebar-close-container {
+        display: none !important;
+      }
+    }
+
+    /* Hide redundant page header breadcrumbs in body */
+    .page-header {
+      display: none !important;
+    }
+
+    /* Page Transition Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .pc-content {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    /* Prevent flash of unstyled content */
+    .pc-container {
+      transition: opacity 0.3s ease;
+    }
+
+    body.is-loading .pc-container {
+      opacity: 0;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar-close-container {
+        display: block !important;
       }
     }
   </style>
-  
+
   {% block extra_css %}{% endblock %}
 </head>
 
-<body data-pc-preset="preset-1" data-pc-sidebar-theme="dark" data-pc-sidebar-caption="true" data-pc-direction="ltr" data-pc-theme="dark">
-  
+<body data-pc-preset="preset-1" data-pc-sidebar-theme="dark" data-pc-sidebar-caption="true" data-pc-direction="ltr"
+  data-pc-theme="dark" class="is-loading">
+
   <!-- [ Pre-loader ] start -->
   <div class="loader-bg">
     <div class="loader-track">
@@ -140,63 +210,90 @@
   <!-- [ Sidebar Menu ] start -->
   <nav class="pc-sidebar">
     <div class="navbar-wrapper">
-      <div class="m-header">
+      <div class="m-header d-flex align-items-center justify-content-between">
         <a href="{% url 'comments:admin-dashboard' %}" class="b-brand text-primary">
           <i data-feather="youtube" style="width: 32px; height: 32px;"></i>
           <span class="badge bg-danger rounded-pill ms-2 theme-version">YT</span>
         </a>
+        <!-- Sidebar Close Button (Mobile Only) -->
+        <div class="pc-h-item sidebar-close-container">
+          <a href="#!" class="pc-head-link me-0" id="sidebar-close"
+            style="background: rgba(255,255,255,0.1); border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+            <i data-feather="x" style="width: 18px; height: 18px; color: white;"></i>
+          </a>
+        </div>
       </div>
       <div class="navbar-content">
         <ul class="pc-navbar">
-          
+
           <li class="pc-item pc-caption">
             <label>Navigation</label>
           </li>
-          
+
           <li class="pc-item">
             <a href="{% url 'comments:admin-dashboard' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="home"></i></span>
               <span class="pc-mtext">Dashboard</span>
             </a>
           </li>
-          
+
+          {% if request.user.is_superuser %}
           <li class="pc-item">
             <a href="{% url 'comments:admin-livestream-list' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="youtube"></i></span>
               <span class="pc-mtext">Live Streams</span>
             </a>
           </li>
-          
+          {% endif %}
+
+          {% if request.user.is_staff %}
           <li class="pc-item">
             <a href="{% url 'comments:admin-livechatmessage-list' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="message-circle"></i></span>
               <span class="pc-mtext">Chat Messages</span>
             </a>
           </li>
-          
+
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-manual-message' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="edit"></i></span>
+              <span class="pc-mtext">Input Manual</span>
+            </a>
+          </li>
+          {% endif %}
+          {% if request.user.is_staff %}
           <li class="pc-item pc-caption">
             <label>Management</label>
           </li>
-          
+
           <li class="pc-item">
             <a href="{% url 'comments:manage-display' %}" class="pc-link">
               <span class="pc-micon"><i data-feather="monitor"></i></span>
               <span class="pc-mtext">Manage Display</span>
             </a>
           </li>
-          
+
+          {% endif %}
+
           <li class="pc-item">
             <a href="{% url 'comments:display' %}" class="pc-link" target="_blank">
               <span class="pc-micon"><i data-feather="tv"></i></span>
               <span class="pc-mtext">OBS Display</span>
             </a>
           </li>
-          
+
           {% if request.user.is_superuser %}
           <li class="pc-item pc-caption">
             <label>System</label>
           </li>
-          
+
+          <li class="pc-item">
+            <a href="{% url 'comments:admin-activity-log' %}" class="pc-link">
+              <span class="pc-micon"><i data-feather="activity"></i></span>
+              <span class="pc-mtext">Activity Log</span>
+            </a>
+          </li>
+
           <li class="pc-item pc-hasmenu">
             <a href="#!" class="pc-link">
               <span class="pc-micon"><i data-feather="users"></i></span>
@@ -213,7 +310,7 @@
             </ul>
           </li>
           {% endif %}
-          
+
         </ul>
       </div>
     </div>
@@ -222,13 +319,15 @@
 
   <!-- [ Header Topbar ] start -->
   <header class="pc-header">
-    <div class="header-wrapper">
-      <div class="me-auto pc-mob-drp">
-        <ul class="list-unstyled">
-          <li class="pc-h-item pc-sidebar-collapse">
+    <div class="header-wrapper px-3">
+      <div class="me-auto">
+        <div class="d-flex align-items-center">
+          <li class="pc-h-item pc-sidebar-collapse me-2 list-unstyled">
             <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
               <!-- SVG for mobile only -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                style="display: none;">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -237,16 +336,24 @@
               <i data-feather="menu"></i>
             </a>
           </li>
-          <li class="pc-h-item d-none d-md-inline-flex">
-            <h5 class="mb-0 ms-2">Dashboard</h5>
-          </li>
-        </ul>
+
+          <!-- Branding Logo in Header (Mobile Only) -->
+          <div class="b-brand text-primary d-flex d-md-none align-items-center me-3">
+            <i data-feather="youtube" style="width: 24px; height: 24px;"></i>
+            <span class="badge bg-danger rounded-pill ms-1" style="font-size: 9px; padding: 2px 6px;">YT</span>
+          </div>
+
+          <h5 class="mb-0 d-none d-md-block" style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px;">
+            {% block header_title %}Dashboard{% endblock %}</h5>
+        </div>
       </div>
-      
+
       <div class="ms-auto">
-        <ul class="list-unstyled">
+        <ul class="list-unstyled d-flex align-items-center mb-0">
+
           <li class="dropdown pc-h-item">
-            <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
+            <a class="pc-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button"
+              aria-haspopup="false" aria-expanded="false">
               <i data-feather="user"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-end pc-h-dropdown">
@@ -278,18 +385,17 @@
   <!-- [ Main Content ] start -->
   <div class="pc-container">
     <div class="pc-content">
-      
+
       {% if messages %}
+      <div id="django-messages" class="d-none">
         {% for message in messages %}
-          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
+        <div data-tags="{{ message.tags|default:'info' }}" data-text="{{ message|escapejs }}"></div>
         {% endfor %}
+      </div>
       {% endif %}
-      
+
       {% block content %}{% endblock %}
-      
+
     </div>
   </div>
   <!-- [ Main Content ] end -->
@@ -301,8 +407,34 @@
   <script src="{% static 'assets/js/fonts/custom-font.js' %}"></script>
   <script src="{% static 'assets/js/pcoded.js' %}"></script>
   <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
-  
+
+  <!-- Toast Container -->
+  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1080">
+    <div id="toast-container"></div>
+  </div>
+
   <script>
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      if (!container) return;
+
+      const toastEl = document.createElement("div");
+      toastEl.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+      toastEl.setAttribute("role", "alert");
+      toastEl.setAttribute("aria-live", "assertive");
+      toastEl.setAttribute("aria-atomic", "true");
+      toastEl.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+      container.appendChild(toastEl);
+      const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+      toast.show();
+      toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+    }
+
     // Theme setup
     if (typeof layout_change === 'function') {
       layout_change('dark');
@@ -310,57 +442,78 @@
     if (typeof layout_sidebar_change === 'function') {
       layout_sidebar_change('dark');
     }
-    
-    // Manual sidebar toggle for mobile
-    document.addEventListener('DOMContentLoaded', function() {
+
+    // Manual sidebar toggle
+    document.addEventListener('DOMContentLoaded', function () {
+      // Smooth Page Loading
+      document.body.classList.remove('is-loading');
+
+      // Show Django messages as toasts
+      const messageContainer = document.getElementById('django-messages');
+      if (messageContainer) {
+        const items = messageContainer.querySelectorAll('div[data-tags][data-text]');
+        const preferredOrder = ['danger', 'warning', 'success', 'primary', 'secondary', 'info', 'dark', 'light'];
+        items.forEach((item) => {
+          const tags = (item.getAttribute('data-tags') || '').split(' ').filter(Boolean);
+          const text = item.getAttribute('data-text') || '';
+          let toastType = 'info';
+          if (tags.includes('error')) {
+            toastType = 'danger';
+          } else {
+            const match = preferredOrder.find((t) => tags.includes(t));
+            if (match) toastType = match;
+          }
+          if (text) showToast(text, toastType);
+        });
+      }
+
       const sidebarToggle = document.getElementById('sidebar-hide');
+      const sidebarClose = document.getElementById('sidebar-close');
       const sidebar = document.querySelector('.pc-sidebar');
       const body = document.body;
-      
-      if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', function(e) {
-          e.preventDefault();
-          
-          // Toggle sidebar visibility
-          if (sidebar.classList.contains('mob-sidebar-active')) {
-            sidebar.classList.remove('mob-sidebar-active');
-            body.classList.remove('mob-sidebar-active');
-          } else {
+
+      const toggleSidebar = (show) => {
+        if (sidebar && body) {
+          if (show) {
             sidebar.classList.add('mob-sidebar-active');
             body.classList.add('mob-sidebar-active');
+          } else {
+            sidebar.classList.remove('mob-sidebar-active');
+            body.classList.remove('mob-sidebar-active');
           }
+        }
+      };
+
+      if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function (e) {
+          e.preventDefault();
+          toggleSidebar(!sidebar.classList.contains('mob-sidebar-active'));
         });
-        
-        // Close sidebar when clicking menu items on mobile
+      }
+
+      if (sidebarClose) {
+        sidebarClose.addEventListener('click', function (e) {
+          e.preventDefault();
+          toggleSidebar(false);
+        });
+      }
+
+      // Close sidebar when clicking menu items on mobile
+      if (sidebar) {
         const menuLinks = sidebar.querySelectorAll('.pc-link');
         menuLinks.forEach(link => {
-          link.addEventListener('click', function() {
+          link.addEventListener('click', () => {
             if (window.innerWidth <= 1024) {
-              sidebar.classList.remove('mob-sidebar-active');
-              body.classList.remove('mob-sidebar-active');
+              toggleSidebar(false);
             }
           });
         });
-        
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function(e) {
-          if (window.innerWidth <= 1024) {
-            if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
-              sidebar.classList.remove('mob-sidebar-active');
-              body.classList.remove('mob-sidebar-active');
-            }
-          }
-        });
-      }
-      
-      // Initialize feather icons
-      if (typeof feather !== 'undefined') {
-        feather.replace();
       }
     });
   </script>
-  
+
   {% block extra_js %}{% endblock %}
-  
+
 </body>
+
 </html>

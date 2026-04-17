@@ -56,8 +56,6 @@ coverage.xml
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media/
-media_root/
 staticfiles/
 staticfiles_build/
 # If you collectstatic into a folder inside the repo
@@ -77,6 +75,7 @@ client_secrets_*.json
 # obs-websocket temporary or token files (if any)
 youtube_token.json
 obs_token.json
+media/avatar_cache/
 
 # VS Code, PyCharm, IDEs
 .vscode/

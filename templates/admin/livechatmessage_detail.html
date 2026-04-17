@@ -23,6 +23,26 @@
 </div>
 <!-- [ breadcrumb ] end -->
 
+<!-- Warning Modal -->
+<div class="modal fade" id="overLimitModal" tabindex="-1" aria-labelledby="overLimitModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title" id="overLimitModalLabel">
+          <i class="feather icon-alert-triangle text-warning"></i> Peringatan
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="overLimitModalMessage">Pesan tidak valid untuk OBS.</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Message Detail -->
 <div class="row">
   <div class="col-md-8">
@@ -31,7 +51,7 @@
         <h5>Message Information</h5>
       </div>
       <div class="card-body">
-        <form method="post">
+        <form method="post" id="message-detail-form">
           {% csrf_token %}
 
           <!-- Author Info -->
@@ -59,7 +79,23 @@
           <!-- Message Text -->
           <div class="mb-4">
             <label class="form-label fw-bold">Message</label>
+            {% if is_manual_message %}
+            <textarea
+              class="form-control"
+              id="message_text"
+              name="message_text"
+              rows="4"
+              maxlength="200"
+              required
+            >{{ message.message_text }}</textarea>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+              <small class="text-muted">Manual input bisa diedit (max 200 karakter)</small>
+              <small class="fw-semibold"><span id="message-text-count">{{ message.message_text|length }}</span>/200</small>
+            </div>
+            {% else %}
             <div class="p-3 border rounded bg-light" style="white-space: pre-wrap">{{ message.message_text }}</div>
+            <small class="text-muted">Pesan non-manual tidak bisa diedit dari halaman ini.</small>
+            {% endif %}
           </div>
 
           <!-- Stream Info -->
@@ -83,6 +119,9 @@
               <label class="form-check-label fw-bold" for="display_selected"> Mark for Display (OBS) </label>
             </div>
             <small class="form-text text-muted"> If checked, this message will appear in the OBS display rotation </small>
+            {% if message.message_text|length > 200 %}
+            <div class="mt-2 text-danger small fw-semibold">Pesan ini lebih dari 200 karakter dan tidak bisa ditampilkan sebelum diedit.</div>
+            {% endif %}
           </div>
 
           <!-- Note -->
@@ -127,7 +166,7 @@
       </div>
       <div class="card-body">
         <div class="d-grid gap-2">
-          <form method="post">
+          <form method="post" class="js-display-quick-form">
             {% csrf_token %}
             <input type="hidden" name="display_selected" value="{% if message.display_selected %}{% else %}on{% endif %}" />
             <button type="submit" class="btn btn-info w-100">
@@ -160,4 +199,73 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const MAX_LEN = 200;
+    const detailForm = document.getElementById('message-detail-form');
+    const displaySwitch = document.getElementById('display_selected');
+    const messageTextInput = document.getElementById('message_text');
+    const messageCount = document.getElementById('message-text-count');
+
+    const getCurrentLength = () => {
+      if (messageTextInput) {
+        return (messageTextInput.value || '').length;
+      }
+      return {{ message.message_text|length }};
+    };
+
+    const showOverLimitPopup = () => {
+      const modalEl = document.getElementById('overLimitModal');
+      if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+      }
+      const messageEl = document.getElementById('overLimitModalMessage');
+      if (messageEl) {
+        messageEl.textContent = 'Pesan lebih dari 200 karakter tidak bisa diaktifkan untuk OBS. Silakan edit dulu.';
+      }
+      const modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    };
+
+    if (messageTextInput && messageCount) {
+      const updateCount = () => {
+        messageCount.textContent = String((messageTextInput.value || '').length);
+      };
+      messageTextInput.addEventListener('input', updateCount);
+      updateCount();
+    }
+
+    if (displaySwitch) {
+      displaySwitch.addEventListener('change', function () {
+        if (this.checked && getCurrentLength() > MAX_LEN) {
+          this.checked = false;
+          showOverLimitPopup();
+        }
+      });
+    }
+
+    if (detailForm) {
+      detailForm.addEventListener('submit', function (event) {
+        if (displaySwitch && displaySwitch.checked && getCurrentLength() > MAX_LEN) {
+          event.preventDefault();
+          showOverLimitPopup();
+        }
+      });
+    }
+
+    document.querySelectorAll('.js-display-quick-form').forEach((form) => {
+      form.addEventListener('submit', function (event) {
+        const hiddenToggle = form.querySelector('input[name="display_selected"]');
+        const wantsEnableDisplay = hiddenToggle && hiddenToggle.value === 'on';
+        if (wantsEnableDisplay && getCurrentLength() > MAX_LEN) {
+          event.preventDefault();
+          showOverLimitPopup();
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

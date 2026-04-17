@@ -13,6 +13,7 @@ from django.db.models.functions import Coalesce
 import json
 
 from .models import LiveChatMessage
+from .services.activity_log import log_activity
 
 
 def display(request):
@@ -20,27 +21,47 @@ def display(request):
     return render(request, 'comments/obs_display.html')
 
 
+def display_by_video(request, video_id):
+    """Public minimal page for displaying selected messages from a specific video."""
+    return render(request, 'comments/obs_display.html', {'video_id': video_id})
+
+
 @login_required(login_url='/admin/login/')
 def manage_display(request):
 	"""Admin page for ordering messages selected for public display."""
 	from .models import LiveStream
+	from .services.display_limit import enforce_display_limit
 
 	# Provide current rotation seconds when rendering the standalone manage page too
 	first = LiveStream.objects.order_by('-created_at').first()
 	current_rotation_seconds = first.display_rotation_seconds if first else ''
+	current_display_limit = first.display_limit if first else ''
 
-	return render(request, 'comments/manage_display.html', {'current_rotation_seconds': current_rotation_seconds})
+	# Enforce display limit on page load to handle existing selections
+	enforce_display_limit()
+
+	return render(
+		request,
+		'comments/manage_display.html',
+		{
+			'current_rotation_seconds': current_rotation_seconds,
+			'current_display_limit': current_display_limit,
+		},
+	)
 
 
 @login_required(login_url='/admin/login/')
 def manage_messages_api(request):
 	"""Return all messages marked for display (admin-only)."""
 	from .models import LiveChatMessage
+	from .services.display_limit import enforce_display_message_length
+
+	enforce_display_message_length(max_length=200)
 
 	queryset = (
 		LiveChatMessage.objects.filter(display_selected=True)
 		.select_related('live_stream')
-		.order_by(Coalesce('display_order', Value(999999)), 'published_at')
+		.order_by(Coalesce('display_order', Value(0)), '-sent_at', '-published_at')
 	)
 
 	data = [
@@ -49,7 +70,7 @@ def manage_messages_api(request):
 			'message_id': m.message_id,
 			'author': m.author_name,
 			'author_profile_image_url': m.author_profile_image_url or None,
-			'text': m.message_text,
+			'text': (m.message_text or '')[:200],
 			'display_order': m.display_order,
 			'video_id': m.live_stream.video_id,
 			'live_stream_title': m.live_stream.title,
@@ -65,6 +86,7 @@ def manage_messages_api(request):
 def reorder_manage_api(request):
 	"""Accepts JSON body: {"order": [message_id1, message_id2, ...]} and updates display_order."""
 	from .models import LiveChatMessage
+	from .services.display_limit import enforce_display_limit
 
 	try:
 		payload = json.loads(request.body.decode('utf-8'))
@@ -89,6 +111,14 @@ def reorder_manage_api(request):
 
 		if updated:
 			LiveChatMessage.objects.bulk_update(updated, ['display_order', 'display_selected', 'updated_at'])
+
+	enforce_display_limit()
+
+	log_activity(
+		request,
+		'reorder_display',
+		details={'count': len(order), 'message_ids': order},
+	)
 
 	return JsonResponse({'status': 'ok', 'updated': len(updated)})
 
@@ -115,24 +145,83 @@ def update_rotation_api(request):
 		s.display_rotation_seconds = seconds_int
 		s.save(update_fields=['display_rotation_seconds', 'updated_at'])
 
+	log_activity(
+		request,
+		'update_rotation_seconds',
+		details={'seconds': seconds_int, 'updated_streams': len(streams)},
+	)
+
 	return JsonResponse({'status': 'ok', 'seconds': seconds_int, 'updated_streams': len(streams)})
+
+
+@login_required(login_url='/admin/login/')
+@require_POST
+def update_display_limit_api(request):
+	"""Update `display_limit` for all live streams.
+	Expects form POST with `limit`.
+	"""
+	from .models import LiveStream
+	from .services.display_limit import enforce_display_limit
+
+	limit = request.POST.get('limit')
+	if not limit:
+		return HttpResponseBadRequest('Missing limit')
+
+	try:
+		limit_int = int(limit)
+	except ValueError:
+		return HttpResponseBadRequest('Invalid limit')
+
+	if limit_int <= 0:
+		return HttpResponseBadRequest('Limit must be positive')
+
+	streams = list(LiveStream.objects.all())
+	for s in streams:
+		s.display_limit = limit_int
+		s.save(update_fields=['display_limit', 'updated_at'])
+
+	removed_ids = enforce_display_limit(limit_int)
+
+	log_activity(
+		request,
+		'update_display_limit',
+		details={'limit': limit_int, 'updated_streams': len(streams), 'removed': len(removed_ids)},
+	)
+
+	return JsonResponse(
+		{
+			'status': 'ok',
+			'limit': limit_int,
+			'updated_streams': len(streams),
+			'removed': len(removed_ids),
+		}
+	)
 
 
 class DisplayMessagesApiView(View):
 	"""Public API returning messages marked for public display."""
 	def get(self, request):
+		from .services.display_limit import enforce_display_message_length
+		enforce_display_message_length(max_length=200)
+
 		queryset = (
 			LiveChatMessage.objects.filter(display_selected=True)
 			.select_related('live_stream')
-			.order_by(Coalesce('display_order', Value(999999)), 'published_at')
 		)
+		
+		# Filter by video_id if provided
+		video_id = request.GET.get('video_id')
+		if video_id:
+			queryset = queryset.filter(live_stream__video_id=video_id)
+		
+		queryset = queryset.order_by(Coalesce('display_order', Value(0)), '-sent_at', '-published_at')
 
 		data = [
 			{
 				'id': m.id,
 				'author_name': m.author_name,
 				'author_profile_image_url': m.author_profile_image_url or None,
-				'text': m.message_text,
+				'text': (m.message_text or '')[:200],
 				'rotation_seconds': m.live_stream.display_rotation_seconds,
 			}
 			for m in queryset

@@ -1,214 +1,373 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Live Comment Display</title>
-    <style>
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        background: transparent;
-        overflow: hidden;
-      }
-      body {
-        color: #111;
-        font-family: Arial, Helvetica, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        padding: 16px 20px 16px 12px;
-      }
-      
-      /* Container untuk avatar dan card */
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Live Comment Display</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    body {
+      color: #000000;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* Container wrapper - tidak fullscreen */
+    #root {
+      display: flex;
+      align-items: flex-end;
+      /* sejajarkan bawah agar rapi */
+      justify-content: flex-start;
+      gap: 0px;
+      /* benar-benar menempel tanpa celah */
+      width: 100%;
+      max-width: 1300px;
+      /* lebarkan area agar card lebih lebar */
+    }
+
+    /* Avatar kotak */
+    .avatar {
+      width: 130px;
+      height: 130px;
+      border-radius: 0;
+      object-fit: cover;
+      background: #ffffff;
+      border: 4px solid #e1251b;
+      /* Border dalam: merah */
+      /* Border luar: putih (lebih solid daripada box-shadow) */
+      outline: 4px solid #ffffff;
+      outline-offset: 0;
+      /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
+      box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
+      box-sizing: border-box;
+      flex-shrink: 0;
+      margin-bottom: 4px;
+      /* sejajarkan shadow bawah dengan card */
+    }
+
+    /* Card untuk username dan message */
+    .card {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px;
+      flex: 0 0 auto;
+      /* jangan melebar, cukup selebar konten */
+      width: auto;
+      /* lebar mengikuti .meta (100ch) + padding */
+      height: 100px;
+      /* tinggi fix agar 1-2 baris tidak geser */
+      min-height: 100px;
+      max-height: 100px;
+      background: #ffffff;
+      border: none;
+      /* Bias shadow ke kanan & bawah agar sisi kiri bersih */
+      box-shadow: 12px 12px 28px rgba(0, 0, 0, 0.16);
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      width: 125ch;
+      /* target ~125 karakter per baris */
+      max-width: 125ch;
+      /* pastikan 2 baris ~200 karakter penuh */
+    }
+
+    .author {
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: #d81e0e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: -4px;
+      /* sedikit naikkan posisi author */
+      transition: opacity 0.2s ease;
+    }
+
+    .message {
+      font-size: 1.15rem;
+      /* sedikit lebih kecil agar muat 100ch */
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      color: #000000;
+      transition: opacity 0.2s ease, font-size 0.15s ease;
+    }
+
+    .message::-webkit-scrollbar {
+      display: none;
+    }
+
+    .message {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @media (max-width: 1024px) {
       #root {
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-        gap: 0px;
-        width: 100%;
+        max-width: 800px;
       }
-      
-      /* Avatar kotak */
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      #root {
+        flex-direction: column;
+        gap: 16px;
+        max-width: 100%;
+      }
+
       .avatar {
-        width: 130px;
-        height: 130px;
-        border-radius: 0;
-        object-fit: cover;
-        background: #eee;
-        border: 4px solid #e1251b; /* Border dalam: merah */
-        box-shadow: 0 0 0 4px #ffffff; /* Border luar: putih */
-        box-sizing: border-box;
-        flex-shrink: 0;
-        margin-bottom: 4px; /* Naikkan agar border putih bawah sejajar dengan card */
-      }
-      
-      /* Card untuk username dan message */
-      .card {
-        display: flex;
-        flex-direction: column;
-        padding: 8px 12px;
-        width: auto;
-        flex: 1;
-        max-width: none;
-        min-width: 400px;
+        width: 100px;
         height: 100px;
-        margin: 0;
-        background: #ffffff;
-        /* box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26); */
-        /* border: 2px solid #111; */
-        position: relative;
-        overflow: hidden;
-        box-sizing: border-box;
       }
-      
+
+      .card {
+        padding: 10px 12px;
+        height: 100px;
+        min-height: 100px;
+        max-height: 100px;
+      }
+
       .meta {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        width: auto;
+        max-width: 100%;
       }
-      
+
       .author {
-        font-weight: 700;
-        font-size: 1.8rem;
-        color: #d81e0e;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      
-      .message {
-        font-size: 1.2rem;
-        line-height: 1.3;
-        max-height: 54px;
-        overflow: hidden;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        font-size: 1.4rem;
       }
 
-      .message::-webkit-scrollbar {
-        display: none;
-      }
       .message {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+        font-size: 0.98rem;
       }
+    }
+  </style>
+</head>
 
-      @media (max-width: 640px) {
-        body {
-          padding: 12px;
-        }
-        #root {
-          flex-direction: column;
-          gap: 16px;
-          width: auto;
-        }
-        .avatar {
-          width: 96px;
-          height: 96px;
-        }
-        .card {
-          width: 95vw;
-          flex: initial;
-          height: 100px;
-          margin: 8px 0;
-          min-width: auto;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root">
-      <img id="avatar" class="avatar" src="" alt="avatar" />
-      <div class="card">
-        <div class="meta">
-          <div id="author" class="author"></div>
-          <div id="message" class="message"></div>
-        </div>
+<body>
+  <div id="root">
+    <img id="avatar" class="avatar" src="" alt="avatar" />
+    <div class="card">
+      <div class="meta">
+        <div id="author" class="author"></div>
+        <div id="message" class="message"></div>
       </div>
     </div>
+  </div>
 
-    <script>
-      (async function () {
-        const fetchUrl = "/api/display_messages/";
-        let messages = [];
-        let idx = 0;
-        let currentMessageIds = "";
-        let displayTimer = null;
-        const avatar = document.getElementById("avatar");
-        const author = document.getElementById("author");
-        const messageEl = document.getElementById("message");
+  <script>
+    (async function () {
+      const videoId = "{{ video_id|default:'' }}";
+      const fetchUrl = videoId ? `/api/display_messages/?video_id=${videoId}` : "/api/display_messages/";
+      let messages = [];
+      let idx = 0;
+      let currentIds = "";
+      let currentSignature = "";
+      let displayTimer = null;
+      let currentMessageId = null;
+      const avatar = document.getElementById("avatar");
+      const author = document.getElementById("author");
+      const messageEl = document.getElementById("message");
+      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const defaultAvatarSvg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 130" role="img" aria-label="default-user-avatar">
+          <rect width="130" height="130" fill="#f3f4f6"/>
+          <circle cx="65" cy="48" r="20" fill="#9ca3af"/>
+          <path d="M30 108c4-20 18-31 35-31s31 11 35 31" fill="#9ca3af"/>
+        </svg>
+      `;
+      const DEFAULT_AVATAR_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(defaultAvatarSvg)}`;
 
-        // Polling setiap 3 detik untuk cek perubahan data
-        const POLL_INTERVAL = 3000;
+      function setAvatarSrc(url) {
+        const candidate = (url || "").trim();
+        avatar.src = candidate || DEFAULT_AVATAR_ICON;
+      }
 
-        async function load() {
-          try {
-            const res = await fetch(fetchUrl, { cache: "no-store" });
-            if (!res.ok) throw new Error("fetch failed");
-            const data = await res.json();
-            const newMessages = data.messages || [];
-            
-            // Cek apakah ada perubahan dengan membandingkan ID messages
-            const newMessageIds = newMessages.map(m => m.id).join(',');
-            const hasChanged = currentMessageIds !== newMessageIds;
-            
-            if (hasChanged) {
-              console.log('Messages updated, reloading display...');
-              messages = newMessages;
-              currentMessageIds = newMessageIds;
-              
-              // Reset index ke 0 saat ada perubahan
+      avatar.addEventListener("error", () => {
+        if (avatar.src !== DEFAULT_AVATAR_ICON) {
+          avatar.src = DEFAULT_AVATAR_ICON;
+        }
+      });
+
+      // Offscreen element untuk hitung tinggi teks aktual
+      const measureEl = document.createElement("div");
+      measureEl.style.position = "absolute";
+      measureEl.style.left = "-99999px";
+      measureEl.style.top = "0";
+      measureEl.style.visibility = "hidden";
+      measureEl.style.pointerEvents = "none";
+      measureEl.style.whiteSpace = "normal";
+      measureEl.style.overflowWrap = "anywhere";
+      measureEl.style.wordBreak = "break-word";
+      measureEl.style.lineHeight = "1.3";
+      measureEl.style.fontFamily = getComputedStyle(messageEl).fontFamily;
+      measureEl.style.fontWeight = getComputedStyle(messageEl).fontWeight;
+      document.body.appendChild(measureEl);
+
+      const POLL_INTERVAL = 3000;
+      const FADE = 200; // ms
+
+      function fitMessageFont(text) {
+        const content = text || "";
+        const width = messageEl.clientWidth;
+        if (!width || !content) {
+          messageEl.style.fontSize = "1.15rem";
+          return;
+        }
+
+        const maxFont = 1.24;
+        const minFont = 0.96;
+        const step = 0.02;
+
+        measureEl.style.width = `${width}px`;
+        measureEl.textContent = content;
+
+        let bestSize = minFont;
+        for (let fontSize = maxFont; fontSize >= minFont; fontSize -= step) {
+          measureEl.style.fontSize = `${fontSize.toFixed(2)}rem`;
+          const maxHeight = remPx * fontSize * 1.3 * 2;
+          if (measureEl.offsetHeight <= maxHeight + 0.5) {
+            bestSize = fontSize;
+            break;
+          }
+        }
+
+        messageEl.style.fontSize = `${bestSize.toFixed(2)}rem`;
+      }
+
+      async function load() {
+        try {
+          const res = await fetch(fetchUrl, { cache: "no-store" });
+          if (!res.ok) throw new Error("fetch failed");
+          const data = await res.json();
+          const newMessages = data.messages || [];
+
+          // Cek perubahan: urutan/isi pesan dan perubahan rotation seconds
+          const newIds = newMessages.map(m => m.id).join(',');
+          const newSignature = newMessages.map(m => `${m.id}:${m.rotation_seconds}`).join(',');
+          const idsChanged = currentIds !== newIds;
+          const signatureChanged = currentSignature !== newSignature;
+
+          if (signatureChanged) {
+            messages = newMessages;
+            currentIds = newIds;
+            currentSignature = newSignature;
+
+            if (idsChanged) {
+              // Reset index ke 0 dan langsung tampilkan
               idx = 0;
-              
-              // Clear timer yang lama dan mulai show dari awal
+              // Clear timer yang lagi jalan dan langsung show message pertama
               if (displayTimer) {
                 clearTimeout(displayTimer);
                 displayTimer = null;
               }
-              
-              if (messages.length === 0) {
-                author.textContent = "";
-                messageEl.textContent = "";
-                avatar.src = "";
-              } else {
+
+              if (messages.length > 0) {
                 show();
               }
+            } else {
+              // Hanya rotation berubah, update timer tanpa ganti message
+              if (displayTimer && currentMessageId) {
+                const current = messages.find(m => m.id === currentMessageId);
+                if (current) {
+                  const rotation = (current.rotation_seconds && Number(current.rotation_seconds)) || 15;
+                  const delay = rotation * 1000;
+                  clearTimeout(displayTimer);
+                  displayTimer = setTimeout(() => {
+                    show();
+                  }, delay);
+                }
+              }
             }
-          } catch (err) {
-            console.error('Error loading messages:', err);
+
+            // Jika sebelumnya kosong dan sekarang ada, segera tampilkan
+            if (messages.length > 0 && !displayTimer) {
+              show();
+            }
           }
-        }
 
-        function show() {
-          if (!messages.length) return;
-          
-          const m = messages[idx % messages.length];
+          if (messages.length === 0) {
+            author.textContent = "";
+            messageEl.textContent = "";
+            setAvatarSrc("");
+          }
+        } catch (err) {
+          console.error('Error loading messages:', err);
+        }
+      }
+
+      function show() {
+        displayTimer = null;
+        if (!messages.length) return;
+
+        const m = messages[idx % messages.length];
+        currentMessageId = m.id;
+
+        // Fade out text
+        author.style.opacity = "0";
+        messageEl.style.opacity = "0";
+
+        setTimeout(() => {
           author.textContent = m.author_name || "";
-          messageEl.textContent = m.text || "";
-          avatar.src = m.author_profile_image_url || "";
-          
-          const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 6;
-          const delay = rotation * 1000;
-          
-          idx = (idx + 1) % messages.length;
-          
-          // Set timer untuk message berikutnya
-          displayTimer = setTimeout(() => {
-            show();
-          }, delay);
-        }
+          const text = m.text || "";
+          messageEl.textContent = text;
+          setAvatarSrc(m.author_profile_image_url || "");
 
-        // Load data pertama kali
-        await load();
-        
-        // Polling berkala untuk cek perubahan
-        setInterval(load, POLL_INTERVAL);
-      })();
-    </script>
-  </body>
+          // Hitung otomatis agar 200 karakter tetap aman di card
+          fitMessageFont(text);
+
+          // Fade in text
+          author.style.opacity = "1";
+             messageEl.style.opacity = "1";
+        }, FADE);
+
+        const rotation = (m.rotation_seconds && Number(m.rotation_seconds)) || 15;
+        const delay = rotation * 1000;
+
+        idx = (idx + 1) % messages.length;
+
+        // Set timer untuk message berikutnya
+        displayTimer = setTimeout(() => {
+          show();
+        }, delay);
+      }
+
+      // Load data pertama kali
+      setAvatarSrc("");
+      await load();
+
+      // Polling berkala untuk cek perubahan
+      setInterval(load, POLL_INTERVAL);
+    })();
+  </script>
+</body>
+
 </html>

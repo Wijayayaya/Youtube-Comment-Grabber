@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple
 
@@ -25,8 +26,23 @@ def get_credentials() -> Credentials:
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
     elif not creds or not creds.valid:
+        if not Path(CLIENT_SECRET_FILE).exists():
+            raise RuntimeError(
+                f"client_secret.json tidak ditemukan di {CLIENT_SECRET_FILE}. "
+                "Set env YOUTUBE_CLIENT_SECRET ke path yang benar."
+            )
+
+        if not sys.stdin.isatty() and os.environ.get("YOUTUBE_OAUTH_MODE") != "console":
+            raise RuntimeError(
+                "OAuth token belum ada/invalid, tetapi proses berjalan non-interactive. "
+                "Buat token terlebih dulu secara manual atau set YOUTUBE_OAUTH_MODE=console."
+            )
+
         flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-        creds = flow.run_local_server(port=0)
+        if os.environ.get("YOUTUBE_OAUTH_MODE") == "console":
+            creds = flow.run_console()
+        else:
+            creds = flow.run_local_server(port=0)
         TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
 
     return creds
